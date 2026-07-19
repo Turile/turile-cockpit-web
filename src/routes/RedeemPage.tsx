@@ -1,8 +1,6 @@
-// Activation screen. TODO(design): full visual — this skeleton fixes the
-// logic, states and semantics; layout/styling goes on top without rework.
-//
-// States exposed to the design layer:
-//   values.{code,email,pin} · fieldErrors (client + server 400)
+// Activation screen — visual from the Design export (VoucherEntry.jsx),
+// logic unchanged from the skeleton:
+//   values.{code,email,pin} · fieldErrors (client + server 400, aria-invalid)
 //   submitting · banner (not_found / rate_limited / unavailable / server / network)
 
 import { useState } from "react";
@@ -10,6 +8,17 @@ import { useNavigate } from "react-router-dom";
 import { activateVoucher } from "../lib/api";
 import type { ApiError } from "../lib/types";
 import { useVoucherSession } from "../session/VoucherSessionContext";
+import {
+  AlertBanner,
+  Flower,
+  Icon,
+  PrimaryButton,
+  inputCls,
+  labelCls,
+} from "../components/redeem/shared";
+
+// TODO: real experience photo from catalog
+const HERO_IMAGE = "https://picsum.photos/seed/turile-balloon-hero/1000/1300";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PIN_RE = /^\d{4}$/;
@@ -61,57 +70,130 @@ export default function RedeemPage() {
   };
 
   return (
-    <section aria-labelledby="redeem-title">
-      {/* TODO(design): hero, brand illustration, spacing, input styling */}
-      <h1 id="redeem-title" className="font-display">
-        Активуй свій подарунок
-      </h1>
+    <section
+      aria-labelledby="redeem-title"
+      className="relative min-h-screen w-full overflow-hidden bg-violet-50 text-gray-900"
+    >
+      <div className="rs-rise mx-auto flex max-w-6xl flex-wrap items-stretch gap-5 px-4 py-6 pb-16 sm:gap-10 sm:px-10 sm:py-11">
+        {/* hero panel */}
+        <div className="relative min-h-[260px] min-w-[300px] flex-[1_1_430px] overflow-hidden rounded-3xl shadow-xl shadow-brand-violet/20 sm:min-h-[520px]">
+          <img
+            src={HERO_IMAGE}
+            alt="Your experience awaits"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gray-900/35" />
+          <Flower className="rs-pop absolute right-6 top-6 h-11 w-14 -rotate-6 text-brand-lime opacity-90" />
+          <div className="absolute inset-x-5 bottom-5 text-white sm:inset-x-8 sm:bottom-8">
+            {/* TODO: brand wordmark asset (export SVG is full-canvas, not a clean mark) */}
+            <div className="mb-4 font-display text-xl">turile</div>
+            <p className="m-0 max-w-[16ch] font-display text-2xl leading-tight sm:text-3xl">
+              Give them a moment — not another thing.
+            </p>
+          </div>
+        </div>
 
-      {banner && (
-        <p role="alert" data-error-kind={banner.kind}>
-          {banner.message}
-          {banner.kind === "rate_limited" && banner.retryAfterS
-            ? ` (~${Math.ceil(banner.retryAfterS / 60)} хв)`
-            : null}
-        </p>
-      )}
+        {/* form card */}
+        <div className="flex min-w-[300px] flex-[1_1_380px] flex-col justify-center rounded-3xl border border-violet-100 bg-white p-6 shadow-xl shadow-brand-violet/20 sm:p-11">
+          <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-700">
+            <Flower className="h-3.5 w-4 text-brand-orange" /> Redeem a gift
+          </span>
+          <h1
+            id="redeem-title"
+            className="mb-2 mt-3 font-display text-3xl leading-tight tracking-tight text-brand-violet sm:text-4xl"
+          >
+            Got a gift? Let&rsquo;s unwrap it
+          </h1>
+          <p className="mb-5 text-lg leading-normal text-gray-600">
+            Pop in the details from your gift email and we&rsquo;ll reveal your experience.
+          </p>
 
-      <form onSubmit={onSubmit} noValidate>
-        <label>
-          Код ваучера
-          <input
-            name="code"
-            autoComplete="off"
-            value={values.code}
-            onChange={set("code")}
-            aria-invalid={fieldErrors.includes("code")}
-          />
-        </label>
-        <label>
-          Email
-          <input
-            name="email"
-            type="email"
-            value={values.email}
-            onChange={set("email")}
-            aria-invalid={fieldErrors.includes("email")}
-          />
-        </label>
-        <label>
-          PIN (4 цифри з подарункового листа)
-          <input
-            name="pin"
-            inputMode="numeric"
-            maxLength={4}
-            value={values.pin}
-            onChange={set("pin")}
-            aria-invalid={fieldErrors.includes("pin")}
-          />
-        </label>
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Перевіряємо…" : "Активувати"}
-        </button>
-      </form>
+          <form onSubmit={onSubmit} noValidate>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label htmlFor="rf-code" className={labelCls}>
+                  Voucher code
+                </label>
+                <input
+                  id="rf-code"
+                  name="code"
+                  className={inputCls}
+                  placeholder="TURILE-XXXX-3928"
+                  autoComplete="off"
+                  value={values.code}
+                  disabled={submitting}
+                  onChange={set("code")}
+                  aria-invalid={fieldErrors.includes("code")}
+                />
+              </div>
+              <div>
+                <label htmlFor="rf-email" className={labelCls}>
+                  Email
+                </label>
+                <input
+                  id="rf-email"
+                  name="email"
+                  type="email"
+                  className={inputCls}
+                  placeholder="you@email.com"
+                  autoComplete="email"
+                  value={values.email}
+                  disabled={submitting}
+                  onChange={set("email")}
+                  aria-invalid={fieldErrors.includes("email")}
+                />
+              </div>
+              <div>
+                <label htmlFor="rf-pin" className={labelCls}>
+                  PIN
+                </label>
+                <input
+                  id="rf-pin"
+                  name="pin"
+                  inputMode="numeric"
+                  maxLength={4}
+                  className={inputCls}
+                  placeholder="4 digits"
+                  value={values.pin}
+                  disabled={submitting}
+                  onChange={set("pin")}
+                  aria-invalid={fieldErrors.includes("pin")}
+                />
+                <span className="mt-1.5 block text-xs text-gray-500">
+                  The 4-digit PIN from your gift email
+                </span>
+              </div>
+            </div>
+
+            {banner && (
+              <AlertBanner
+                tone={banner.kind === "rate_limited" ? "muted" : "error"}
+                data-error-kind={banner.kind}
+                className="mt-5"
+              >
+                {banner.message}
+                {banner.kind === "rate_limited" && banner.retryAfterS
+                  ? ` (~${Math.ceil(banner.retryAfterS / 60)} min)`
+                  : null}
+              </AlertBanner>
+            )}
+
+            <PrimaryButton type="submit" className="mt-6" loading={submitting}>
+              {submitting ? "Unwrapping…" : "Continue"}
+            </PrimaryButton>
+          </form>
+
+          <div className="mt-4 text-center">
+            {/* TODO: swap for the help-center article once it exists */}
+            <a
+              href="mailto:hello@turile.ca?subject=Where%20do%20I%20find%20my%20code%3F"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-violet underline-offset-4 hover:underline"
+            >
+              <Icon name="help" className="h-4 w-4" /> Where do I find my code?
+            </a>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
