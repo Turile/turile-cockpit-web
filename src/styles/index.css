@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Display font placeholder: TAN-Songbird is licensed (display-only) and its
+     web use is NOT confirmed yet. Until then headings render in Poppins.
+     When the license is confirmed: load the font and change this one line. */
+  --font-display: "Poppins";
+}
