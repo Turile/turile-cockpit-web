@@ -64,7 +64,7 @@ export type ApiErrorKind =
 
 export type ApiError = {
   kind: ApiErrorKind;
-  message: string; // ready-to-render UI copy (Ukrainian)
+  message: string; // ready-to-render UI copy (English, recipient-facing tone)
   fields?: string[]; // invalid_input: offending fields
   retryAfterS?: number; // rate_limited: from Retry-After header
 };

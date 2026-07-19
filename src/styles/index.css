@@ -8,3 +8,51 @@
      When the license is confirmed: load the font and change this one line. */
   --font-display: "Poppins";
 }
+
+/* Recipient-flow motion, ported from the Design export (_shared.jsx). */
+@keyframes rsRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes rsPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes rsSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.rs-rise {
+  animation: rsRise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.rs-pop {
+  animation: rsPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.rs-spin {
+  animation: rsSpin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rs-rise,
+  .rs-pop {
+    animation: none !important;
+  }
+  .rs-spin {
+    animation-duration: 1.6s;
+  }
+}

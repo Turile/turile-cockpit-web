@@ -15,11 +15,11 @@ const BASE = import.meta.env.DEV ? "" : (import.meta.env.VITE_SUPABASE_URL as st
 
 const NETWORK_ERROR: ApiError = {
   kind: "network",
-  message: "Немає з'єднання. Перевір інтернет і спробуй ще раз.",
+  message: "Looks like you're offline. Check your connection and try again.",
 };
 const SERVER_ERROR: ApiError = {
   kind: "server",
-  message: "Щось пішло не так з нашого боку. Спробуй ще раз за хвилину.",
+  message: "Something hiccuped on our side — give it another try in a minute.",
 };
 
 type RawResponse = { status: number; retryAfterS?: number; body: Record<string, unknown> };
@@ -45,7 +45,7 @@ async function post(fn: string, payload: unknown): Promise<RawResponse | null> {
 
 const rateLimited = (retryAfterS?: number): ApiError => ({
   kind: "rate_limited",
-  message: "Забагато спроб. Зачекай трохи і спробуй знову.",
+  message: "Too many attempts. Take a short breather and try again.",
   retryAfterS,
 });
 
@@ -97,15 +97,21 @@ export async function activateVoucher(input: {
     status === 400
       ? {
           kind: "invalid_input",
-          message: "Перевір виділені поля.",
+          message: "Check the highlighted fields.",
           fields: (body.fields as string[]) ?? [],
         }
       : status === 404
-        ? { kind: "not_found", message: "Це поєднання коду, email та PIN не знайдено." }
+        ? {
+            kind: "not_found",
+            message: "We couldn't find that combination — double-check your code, email and PIN.",
+          }
         : status === 429
           ? rateLimited(res.retryAfterS)
           : status === 503
-            ? { kind: "unavailable", message: "Сервіс тимчасово недоступний. Спробуй за кілька хвилин." }
+            ? {
+                kind: "unavailable",
+                message: "We're briefly unavailable. Try again in a few minutes.",
+              }
             : SERVER_ERROR;
   return { ok: false, error };
 }
@@ -144,28 +150,31 @@ export async function createBookingRequest(
   }
 
   const reasonText: Record<string, string> = {
-    voucher_not_active: "Цей ваучер зараз не можна забукати.",
-    no_pinned_experience: "На цьому ваучері немає закріпленого досвіду.",
-    experience_not_active: "Цей досвід тимчасово недоступний.",
-    provider_not_active: "Провайдер тимчасово недоступний.",
-    provider_not_request_mode: "Цей досвід букається інакше — зв'яжись із нами.",
+    voucher_not_active: "This voucher can't be booked right now.",
+    no_pinned_experience: "This voucher doesn't have a pinned experience.",
+    experience_not_active: "This experience is temporarily unavailable.",
+    provider_not_active: "This provider is temporarily unavailable.",
+    provider_not_request_mode: "This experience books a little differently — get in touch and we'll sort it out.",
   };
 
   const error: ApiError =
     status === 401
-      ? { kind: "session_expired", message: "Сесія завершилась. Активуй ваучер ще раз." }
+      ? {
+          kind: "session_expired",
+          message: "Your session timed out. Activate your gift again to keep going.",
+        }
       : status === 400
         ? {
             kind: "invalid_input",
-            message: "Перевір обрані слоти.",
+            message: "Check your chosen times.",
             fields: (body.details as string[]) ?? [],
           }
         : status === 409 && body.error === "already_booked"
-          ? { kind: "already_booked", message: "У цього ваучера вже є активне бронювання." }
+          ? { kind: "already_booked", message: "This gift already has an active booking." }
           : status === 409
             ? {
                 kind: "not_bookable",
-                message: reasonText[(body.reason as string) ?? ""] ?? "Зараз забукати не вийде.",
+                message: reasonText[(body.reason as string) ?? ""] ?? "Booking isn't possible right now.",
               }
             : status === 429
               ? rateLimited(res.retryAfterS)
@@ -173,7 +182,7 @@ export async function createBookingRequest(
                 ? {
                     kind: "email_failed",
                     message:
-                      "Запит створено, але лист провайдеру не пішов. Натисни «Надіслати» ще раз — ми повторимо відправку.",
+                      "Your request is saved, but the email to the provider didn't go through. Hit \"Send booking request\" again and we'll retry.",
                   }
                 : SERVER_ERROR;
   return { ok: false, error };
