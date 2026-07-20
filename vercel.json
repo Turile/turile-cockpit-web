@@ -1,0 +1,4 @@
+{
+  "$comment": "SPA fallback: client-side routes (/redeem/*, future /provider/respond/*) must serve index.html on direct load — gift and magic-link emails deep-link straight into them. Static assets win before rewrites.",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
