@@ -19,18 +19,23 @@ import { respondToBooking, verifyProviderToken } from "../lib/api";
 import type { ApiError, ProviderBookingSummary, ProviderResponseOutcome, Slot } from "../lib/types";
 import {
   AlertBanner,
+  ArrivalTimeControls,
+  EMPTY_ARRIVAL,
   Flower,
   Icon,
   PrimaryButton,
+  arrivalTo24h,
   cx,
   inputCls,
   labelCls,
+  type ArrivalTime,
 } from "../components/redeem/shared";
 import logoOrange from "../assets/logo-orange.svg";
 
 const MIN_LEAD_MS = 24 * 60 * 60 * 1000;
 const MAX_HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
-const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
+// The API needs end > start; arrival-time semantics make the end technical.
+const TECHNICAL_END_MS = 15 * 60 * 1000;
 const MAX_NOTE_LEN = 500;
 
 // Arrival time only — a slot's end is technical (arrival-time decision,
@@ -51,16 +56,21 @@ const fmtMoment = (iso: string) =>
     timeZone: "America/Edmonton",
   }).format(new Date(iso));
 
-const validateAlt = (draft: { start: string; end: string }): { slot?: Slot; error?: string } => {
-  const start = draft.start ? Date.parse(draft.start) : NaN;
-  const end = draft.end ? Date.parse(draft.end) : NaN;
-  if (Number.isNaN(start) || Number.isNaN(end)) return { error: "Pick both a start and an end time." };
-  if (end <= start) return { error: "The end time must be after the start." };
-  if (end - start > MAX_DURATION_MS) return { error: "Keep it under 24 hours." };
+type AltDraft = { date: string } & ArrivalTime;
+
+const validateAlt = (d: AltDraft): { slot?: Slot; error?: string } => {
+  if (!d.date || !d.hour || !d.ampm) return { error: "Pick a date, an hour and AM or PM." };
+  const start = Date.parse(`${d.date}T${arrivalTo24h(d)}`); // provider's local time
+  if (Number.isNaN(start)) return { error: "That date doesn't look right." };
   const now = Date.now();
   if (start < now + MIN_LEAD_MS) return { error: "Pick a time at least 24 hours from now." };
   if (start > now + MAX_HORIZON_MS) return { error: "Keep it within the next year." };
-  return { slot: { start: new Date(start).toISOString(), end: new Date(end).toISOString() } };
+  return {
+    slot: {
+      start: new Date(start).toISOString(),
+      end: new Date(start + TECHNICAL_END_MS).toISOString(),
+    },
+  };
 };
 
 type Phase = "loading" | "invalid" | "ready";
@@ -77,7 +87,7 @@ export default function ProviderRespondPage() {
 
   const [slotIndex, setSlotIndex] = useState(0);
   const [panel, setPanel] = useState<Panel>("none");
-  const [altDraft, setAltDraft] = useState({ start: "", end: "" });
+  const [altDraft, setAltDraft] = useState<AltDraft>({ date: "", ...EMPTY_ARRIVAL });
   const [altError, setAltError] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
@@ -281,36 +291,26 @@ export default function ProviderRespondPage() {
         {panel !== "none" && (
           <div className="mt-5 rounded-2xl bg-violet-50 p-4 sm:p-5">
             {panel === "alternative" && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="alt-start" className={labelCls}>
-                    Starts
-                  </label>
+              <fieldset disabled={submitting} className="m-0 flex min-w-0 flex-wrap gap-2.5 border-0 p-0">
+                <label className="min-w-[170px] flex-[1_1_170px]">
+                  <span className={labelCls}>Date</span>
                   <input
-                    id="alt-start"
-                    type="datetime-local"
+                    type="date"
                     className={inputCls}
-                    value={altDraft.start}
-                    disabled={submitting}
+                    value={altDraft.date}
                     aria-invalid={!!altError}
-                    onChange={(e) => setAltDraft((d) => ({ ...d, start: e.target.value }))}
+                    onChange={(e) => setAltDraft((d) => ({ ...d, date: e.target.value }))}
+                  />
+                </label>
+                <div className="min-w-[280px] flex-[2_1_300px]">
+                  <span className={labelCls}>Arrival time</span>
+                  <ArrivalTimeControls
+                    labelPrefix="Suggested time"
+                    value={altDraft}
+                    onChange={(next) => setAltDraft((d) => ({ ...d, ...next }))}
                   />
                 </div>
-                <div>
-                  <label htmlFor="alt-end" className={labelCls}>
-                    Ends
-                  </label>
-                  <input
-                    id="alt-end"
-                    type="datetime-local"
-                    className={inputCls}
-                    value={altDraft.end}
-                    disabled={submitting}
-                    aria-invalid={!!altError}
-                    onChange={(e) => setAltDraft((d) => ({ ...d, end: e.target.value }))}
-                  />
-                </div>
-              </div>
+              </fieldset>
             )}
             <div className={panel === "alternative" ? "mt-3" : ""}>
               <label htmlFor="respond-note" className={labelCls}>

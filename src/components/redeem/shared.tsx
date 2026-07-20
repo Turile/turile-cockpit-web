@@ -181,6 +181,101 @@ export function PrimaryLink({
   );
 }
 
+/* Arrival-time picker: hour select + quarter-hour pills + AM/PM toggle.
+   Arrival-time decision (2026-07-19): recipients and providers pick when the
+   guest ARRIVES — no end time is asked anywhere; durations live on the
+   product. Minutes default to :00; hour and meridiem stay explicit choices
+   so 9 AM never silently means 9 PM. Used by the booking screen and the
+   provider "suggest another time" panel. */
+
+export type ArrivalTime = { hour: string; minute: string; ampm: "" | "AM" | "PM" };
+export const EMPTY_ARRIVAL: ArrivalTime = { hour: "", minute: "00", ampm: "" };
+export const arrivalTo24h = (t: ArrivalTime): string =>
+  `${String((Number(t.hour) % 12) + (t.ampm === "PM" ? 12 : 0)).padStart(2, "0")}:${t.minute}`;
+
+const HOUR_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1));
+const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+
+function PillGroup<T extends string>({
+  label,
+  options,
+  selected,
+  onSelect,
+  render = (v: T) => v,
+}: {
+  label: string;
+  options: readonly T[];
+  selected: string;
+  onSelect: (v: T) => void;
+  render?: (v: T) => string;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="inline-flex flex-none rounded-full bg-violet-100 p-1">
+      {options.map((v) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={selected === v}
+          onClick={() => onSelect(v)}
+          className={cx(
+            "rounded-full py-1.5 text-[13px] font-semibold transition",
+            render(v).length > 2 ? "px-2" : "px-2.5",
+            selected === v
+              ? "bg-brand-violet text-white shadow-sm"
+              : "text-gray-600 hover:text-brand-violet",
+          )}
+        >
+          {render(v)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function ArrivalTimeControls({
+  labelPrefix,
+  value,
+  onChange,
+}: {
+  labelPrefix: string; // e.g. "Option 1" — prefixes the aria labels
+  value: ArrivalTime;
+  onChange: (next: ArrivalTime) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        aria-label={`${labelPrefix}: hour`}
+        value={value.hour}
+        onChange={(e) => onChange({ ...value, hour: e.target.value })}
+        className={cx(inputCls, "!w-[86px] flex-none")}
+      >
+        <option value="" disabled>
+          Hour
+        </option>
+        {HOUR_OPTIONS.map((h) => (
+          <option key={h} value={h}>
+            {h}
+          </option>
+        ))}
+      </select>
+      <PillGroup
+        label={`${labelPrefix}: minutes`}
+        options={MINUTE_OPTIONS}
+        selected={value.minute}
+        onSelect={(m) => onChange({ ...value, minute: m })}
+        render={(m) => `:${m}`}
+      />
+      <PillGroup
+        label={`${labelPrefix}: AM or PM`}
+        options={["AM", "PM"] as const}
+        selected={value.ampm}
+        onSelect={(ap) => onChange({ ...value, ampm: ap })}
+      />
+    </div>
+  );
+}
+
 /* Inline alert. tone="muted" is the calm grey variant (rate-limit, session
    notices); tone="error" the orange one. Pages pass data-error-kind through. */
 

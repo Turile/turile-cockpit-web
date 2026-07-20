@@ -21,7 +21,16 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { createBookingRequest } from "../lib/api";
 import type { ApiError, Slot } from "../lib/types";
 import { useVoucherSession } from "../session/VoucherSessionContext";
-import { AlertBanner, Icon, PrimaryButton, inputCls } from "../components/redeem/shared";
+import {
+  AlertBanner,
+  ArrivalTimeControls,
+  EMPTY_ARRIVAL,
+  Icon,
+  PrimaryButton,
+  arrivalTo24h,
+  inputCls,
+  type ArrivalTime,
+} from "../components/redeem/shared";
 
 // TODO: real experience photo from catalog
 const EXPERIENCE_THUMB = "https://picsum.photos/seed/turile-balloon-hero/200/200";
@@ -33,18 +42,11 @@ const MAX_HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
 // The API needs end > start; arrival-time semantics make the end technical.
 const TECHNICAL_END_MS = 15 * 60 * 1000;
 
-// Arrival time is composed from four small controls (hour / :minutes /
-// AM-PM), not one 96-option list: hours in a select, the four quarter-hour
-// steps and the meridiem as segmented pills. Minutes default to :00; hour
-// and AM/PM are explicit choices so nobody books 9 AM meaning 9 PM.
-type SlotDraft = { date: string; hour: string; minute: string; ampm: "" | "AM" | "PM" };
-
-const HOUR_OPTIONS = Array.from({ length: 12 }, (_, i) => String(i + 1));
-const MINUTE_OPTIONS = ["00", "15", "30", "45"];
+// Arrival time comes from the shared picker (ArrivalTimeControls): hour
+// select + quarter-hour pills + AM/PM toggle.
+type SlotDraft = { date: string } & ArrivalTime;
 
 const draftTouched = (d: SlotDraft) => Boolean(d.date || d.hour || d.ampm);
-const to24h = (d: SlotDraft) =>
-  `${String((Number(d.hour) % 12) + (d.ampm === "PM" ? 12 : 0)).padStart(2, "0")}:${d.minute}`;
 
 function validate(drafts: SlotDraft[]): { slots?: Slot[]; errors: string[] } {
   const errors: string[] = [];
@@ -61,7 +63,7 @@ function validate(drafts: SlotDraft[]): { slots?: Slot[]; errors: string[] } {
     const n = i + 1;
     if (!d.date || !d.hour || !d.ampm)
       return errors.push(`Option ${n}: pick a date, an hour and AM or PM.`);
-    const start = Date.parse(`${d.date}T${to24h(d)}`); // local time, like datetime-local was
+    const start = Date.parse(`${d.date}T${arrivalTo24h(d)}`); // local time, like datetime-local was
     if (Number.isNaN(start)) return errors.push(`Option ${n}: that date doesn't look right.`);
     if (start < now + MIN_LEAD_MS)
       return errors.push(`Option ${n}: pick a time at least 24 hours from now.`);
@@ -84,7 +86,7 @@ export default function BookingPage() {
   const exp = session!.voucher.pinnedExperience;
 
   const [drafts, setDrafts] = useState<SlotDraft[]>(
-    Array.from({ length: MAX_SLOTS }, () => ({ date: "", hour: "", minute: "00", ampm: "" as const })),
+    Array.from({ length: MAX_SLOTS }, () => ({ date: "", ...EMPTY_ARRIVAL })),
   );
   const [errors, setErrors] = useState<string[]>([]);
   const [banner, setBanner] = useState<ApiError | null>(null);
@@ -98,8 +100,8 @@ export default function BookingPage() {
   // (After the hooks: keeps the hook order unconditional.)
   if (!exp) return <Navigate to="/redeem/success" replace />;
 
-  const setDraft = (i: number, k: keyof SlotDraft, value: string) =>
-    setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, [k]: value } : d)));
+  const patchDraft = (i: number, patch: Partial<SlotDraft>) =>
+    setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, ...patch } : d)));
 
   const reenter = () => {
     clearSession();
@@ -225,7 +227,7 @@ export default function BookingPage() {
                         <input
                           type="date"
                           value={d.date}
-                          onChange={(e) => setDraft(i, "date", e.target.value)}
+                          onChange={(e) => patchDraft(i, { date: e.target.value })}
                           className={inputCls}
                         />
                       </label>
@@ -233,67 +235,11 @@ export default function BookingPage() {
                         <span className="mb-1 block text-xs font-medium text-gray-500">
                           Arrival time
                         </span>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <select
-                            aria-label={`Option ${i + 1}: hour`}
-                            value={d.hour}
-                            onChange={(e) => setDraft(i, "hour", e.target.value)}
-                            className={`${inputCls} !w-[86px] flex-none`}
-                          >
-                            <option value="" disabled>
-                              Hour
-                            </option>
-                            {HOUR_OPTIONS.map((h) => (
-                              <option key={h} value={h}>
-                                {h}
-                              </option>
-                            ))}
-                          </select>
-                          <div
-                            role="radiogroup"
-                            aria-label={`Option ${i + 1}: minutes`}
-                            className="inline-flex flex-none rounded-full bg-violet-100 p-1"
-                          >
-                            {MINUTE_OPTIONS.map((m) => (
-                              <button
-                                key={m}
-                                type="button"
-                                role="radio"
-                                aria-checked={d.minute === m}
-                                onClick={() => setDraft(i, "minute", m)}
-                                className={`rounded-full px-2 py-1.5 text-[13px] font-semibold transition ${
-                                  d.minute === m
-                                    ? "bg-brand-violet text-white shadow-sm"
-                                    : "text-gray-600 hover:text-brand-violet"
-                                }`}
-                              >
-                                :{m}
-                              </button>
-                            ))}
-                          </div>
-                          <div
-                            role="radiogroup"
-                            aria-label={`Option ${i + 1}: AM or PM`}
-                            className="inline-flex flex-none rounded-full bg-violet-100 p-1"
-                          >
-                            {(["AM", "PM"] as const).map((ap) => (
-                              <button
-                                key={ap}
-                                type="button"
-                                role="radio"
-                                aria-checked={d.ampm === ap}
-                                onClick={() => setDraft(i, "ampm", ap)}
-                                className={`rounded-full px-2.5 py-1.5 text-[13px] font-semibold transition ${
-                                  d.ampm === ap
-                                    ? "bg-brand-violet text-white shadow-sm"
-                                    : "text-gray-600 hover:text-brand-violet"
-                                }`}
-                              >
-                                {ap}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        <ArrivalTimeControls
+                          labelPrefix={`Option ${i + 1}`}
+                          value={d}
+                          onChange={(next) => patchDraft(i, next)}
+                        />
                       </div>
                     </div>
                   </div>
