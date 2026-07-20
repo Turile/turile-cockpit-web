@@ -1,14 +1,20 @@
 // Slot proposal screen (request-mode booking) — visual from the Design
-// export (BookingRequest.jsx). The slot inputs stay start/end
-// datetime-local pairs (the API contract is Slot{start,end} with duration
-// rules), laid out inside the design's slot cards.
+// export (BookingRequest.jsx), reworked per the arrival-time decision
+// (2026-07-19): the recipient proposes WHEN THEY ARRIVE (date + time in
+// 15-minute steps, AM/PM) — the experience's duration is described on the
+// product, so no end time is asked for. The API contract stays Slot{start,
+// end} with end > start, so a technical end of start + 15 min is sent; the
+// provider-respond page renders arrival time only. (Known tail: the
+// provider EMAIL still formats a start–end range — backend copy tweak.)
 //
-// Client validation mirrors the server exactly (2-3 slots, 24h lead, 1y
-// horizon, ≤24h duration, no duplicates, party 1-20) so 400s stay rare.
-// Server error kinds handled: session_expired (inline banner — the session
-// is cleared only when the user clicks "Re-enter your code", not
-// automatically), already_booked, not_bookable, email_failed (retry by
-// resubmitting), rate_limited.
+// Party size is deliberately not asked: the guest count is baked into the
+// purchased product variant. The API's party_size is always sent as 1.
+//
+// Client validation mirrors the server (2-3 slots, 24h lead, 1y horizon,
+// no duplicates) so 400s stay rare. Server error kinds handled:
+// session_expired (inline banner — the session is cleared only when the
+// user clicks "Re-enter your code", not automatically), already_booked,
+// not_bookable, email_failed (retry by resubmitting), rate_limited.
 
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
@@ -24,40 +30,46 @@ const MIN_SLOTS = 2;
 const MAX_SLOTS = 3;
 const MIN_LEAD_MS = 24 * 60 * 60 * 1000;
 const MAX_HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
-const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
-const PARTY_MIN = 1;
-const PARTY_MAX = 20;
+// The API needs end > start; arrival-time semantics make the end technical.
+const TECHNICAL_END_MS = 15 * 60 * 1000;
 
-type SlotDraft = { start: string; end: string }; // datetime-local values
+type SlotDraft = { date: string; time: string }; // "YYYY-MM-DD" + "HH:MM" (24h)
 
-function validate(drafts: SlotDraft[], partySize: number): { slots?: Slot[]; errors: string[] } {
+// Full day in 15-minute steps, labelled 12-hour with AM/PM per the design.
+const TIME_OPTIONS = Array.from({ length: 24 * 4 }, (_, i) => {
+  const h = Math.floor(i / 4);
+  const m = (i % 4) * 15;
+  const value = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const label = `${h12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+  return { value, label };
+});
+
+function validate(drafts: SlotDraft[]): { slots?: Slot[]; errors: string[] } {
   const errors: string[] = [];
-  const filled = drafts.filter((d) => d.start || d.end);
+  const filled = drafts.filter((d) => d.date || d.time);
   if (filled.length < MIN_SLOTS) {
     errors.push(
       `Pick at least ${MIN_SLOTS} time options — it helps your provider confirm one faster.`,
     );
   }
-  if (!Number.isInteger(partySize) || partySize < PARTY_MIN || partySize > PARTY_MAX) {
-    errors.push(`Party size should be between ${PARTY_MIN} and ${PARTY_MAX}.`);
-  }
 
   const now = Date.now();
   const slots: Slot[] = [];
   filled.forEach((d, i) => {
-    const start = Date.parse(d.start);
-    const end = Date.parse(d.end);
     const n = i + 1;
-    if (Number.isNaN(start) || Number.isNaN(end))
-      return errors.push(`Option ${n}: fill in both the start and the end.`);
-    if (end <= start) return errors.push(`Option ${n}: the end should come after the start.`);
-    if (end - start > MAX_DURATION_MS)
-      return errors.push(`Option ${n}: keep it under 24 hours.`);
+    if (!d.date || !d.time)
+      return errors.push(`Option ${n}: pick both a date and an arrival time.`);
+    const start = Date.parse(`${d.date}T${d.time}`); // local time, like datetime-local was
+    if (Number.isNaN(start)) return errors.push(`Option ${n}: that date doesn't look right.`);
     if (start < now + MIN_LEAD_MS)
       return errors.push(`Option ${n}: pick a time at least 24 hours from now.`);
     if (start > now + MAX_HORIZON_MS)
       return errors.push(`Option ${n}: keep it within the next year.`);
-    slots.push({ start: new Date(start).toISOString(), end: new Date(end).toISOString() });
+    slots.push({
+      start: new Date(start).toISOString(),
+      end: new Date(start + TECHNICAL_END_MS).toISOString(),
+    });
   });
   if (new Set(slots.map((s) => s.start)).size !== slots.length) {
     errors.push("Your options shouldn't repeat — mix the times up a little.");
@@ -71,9 +83,8 @@ export default function BookingPage() {
   const exp = session!.voucher.pinnedExperience;
 
   const [drafts, setDrafts] = useState<SlotDraft[]>(
-    Array.from({ length: MAX_SLOTS }, () => ({ start: "", end: "" })),
+    Array.from({ length: MAX_SLOTS }, () => ({ date: "", time: "" })),
   );
-  const [partySize, setPartySize] = useState(1);
   const [errors, setErrors] = useState<string[]>([]);
   const [banner, setBanner] = useState<ApiError | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -86,8 +97,10 @@ export default function BookingPage() {
   // (After the hooks: keeps the hook order unconditional.)
   if (!exp) return <Navigate to="/redeem/success" replace />;
 
-  const setDraft = (i: number, k: keyof SlotDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
-    setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, [k]: e.target.value } : d)));
+  const setDraft =
+    (i: number, k: keyof SlotDraft) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, [k]: e.target.value } : d)));
 
   const reenter = () => {
     clearSession();
@@ -97,14 +110,14 @@ export default function BookingPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBanner(null);
-    const v = validate(drafts, partySize);
+    const v = validate(drafts);
     setErrors(v.errors);
     if (!v.slots) return;
 
     setSubmitting(true);
     const result = await createBookingRequest(session!.token, {
       slots: v.slots,
-      partySize,
+      partySize: 1, // guest count lives in the purchased product variant
     });
     setSubmitting(false);
 
@@ -189,7 +202,7 @@ export default function BookingPage() {
           >
             <div className="flex flex-col gap-3.5">
               {drafts.map((d, i) => {
-                const complete = d.start && d.end;
+                const complete = d.date && d.time;
                 return (
                   <div
                     key={i}
@@ -209,56 +222,37 @@ export default function BookingPage() {
                     </div>
                     <div className="flex flex-wrap gap-2.5">
                       <label className="min-w-[150px] flex-[1_1_150px]">
-                        <span className="mb-1 block text-xs font-medium text-gray-500">
-                          Starts
-                        </span>
+                        <span className="mb-1 block text-xs font-medium text-gray-500">Date</span>
                         <input
-                          type="datetime-local"
-                          value={d.start}
-                          onChange={setDraft(i, "start")}
+                          type="date"
+                          value={d.date}
+                          onChange={setDraft(i, "date")}
                           className={inputCls}
                         />
                       </label>
                       <label className="min-w-[150px] flex-[1_1_150px]">
-                        <span className="mb-1 block text-xs font-medium text-gray-500">Ends</span>
-                        <input
-                          type="datetime-local"
-                          value={d.end}
-                          onChange={setDraft(i, "end")}
+                        <span className="mb-1 block text-xs font-medium text-gray-500">
+                          Arrival time
+                        </span>
+                        <select
+                          value={d.time}
+                          onChange={setDraft(i, "time")}
                           className={inputCls}
-                        />
+                        >
+                          <option value="" disabled>
+                            Select…
+                          </option>
+                          {TIME_OPTIONS.map((t) => (
+                            <option key={t.value} value={t.value}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                     </div>
                   </div>
                 );
               })}
-            </div>
-
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-100 bg-white p-4 shadow-md shadow-brand-violet/10">
-              <span className="inline-flex items-center gap-2 text-base font-semibold text-gray-900">
-                <Icon name="users" className="h-5 w-5 text-violet-700" /> Party size
-              </span>
-              <div className="inline-flex items-center gap-3.5 rounded-full bg-violet-100 px-2 py-1">
-                <button
-                  type="button"
-                  aria-label="Fewer guests"
-                  onClick={() => setPartySize((p) => Math.max(PARTY_MIN, p - 1))}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-xl font-semibold text-brand-violet shadow-sm"
-                >
-                  −
-                </button>
-                <span className="min-w-[20px] text-center text-base font-bold text-gray-900">
-                  {partySize}
-                </span>
-                <button
-                  type="button"
-                  aria-label="More guests"
-                  onClick={() => setPartySize((p) => Math.min(PARTY_MAX, p + 1))}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-xl font-semibold text-brand-violet shadow-sm"
-                >
-                  +
-                </button>
-              </div>
             </div>
           </fieldset>
 

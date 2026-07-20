@@ -47,7 +47,7 @@ export default function RedeemSuccessPage() {
         <Flower className="rs-pop absolute right-[7%] top-6 h-6 w-8 rotate-12 text-brand-orange opacity-90 [animation-delay:.15s]" />
 
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-violet-700">
-          <Flower className="h-3.5 w-4 text-brand-lime" /> Gift unwrapped
+          <Flower className="h-3.5 w-4 text-brand-orange" /> Gift unwrapped
         </span>
         <h1
           id="voucher-title"
@@ -140,16 +140,14 @@ export default function RedeemSuccessPage() {
           </PrimaryButton>
         )}
         {!exp && (
-          /* TODO: point at the real catalogue URL on the storefront */
-          <PrimaryLink href="https://turile.ca" className="mt-6">
+          <PrimaryLink href="https://turil.ca" className="mt-6">
             Browse experiences <Icon name="arrow" className="h-5 w-5" strokeWidth={2.4} />
           </PrimaryLink>
         )}
         <div className="mt-3">
           {exp ? (
-            /* TODO: point at the real catalogue URL on the storefront */
             <a
-              href="https://turile.ca"
+              href="https://turil.ca"
               className="text-sm font-semibold text-brand-violet underline decoration-2 underline-offset-4"
             >
               Prefer something else? Browse experiences

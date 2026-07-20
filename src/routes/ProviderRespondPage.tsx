@@ -26,23 +26,23 @@ import {
   inputCls,
   labelCls,
 } from "../components/redeem/shared";
+import logoOrange from "../assets/logo-orange.svg";
 
 const MIN_LEAD_MS = 24 * 60 * 60 * 1000;
 const MAX_HORIZON_MS = 365 * 24 * 60 * 60 * 1000;
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 const MAX_NOTE_LEN = 500;
 
-// Same rendering as the provider email: Mountain Time, spelled out.
+// Arrival time only — a slot's end is technical (arrival-time decision,
+// 2026-07-19): the guest proposes when they arrive; duration lives on the
+// product. Mountain Time, spelled out, like the email.
 // TODO(phase2): per-provider timezone, together with the backend.
-const fmtSlot = (s: Slot) => {
-  const day = new Intl.DateTimeFormat("en-CA", {
+const fmtSlot = (s: Slot) =>
+  `${new Intl.DateTimeFormat("en-CA", {
     dateStyle: "full",
     timeStyle: "short",
     timeZone: "America/Edmonton",
-  });
-  const end = new Intl.DateTimeFormat("en-CA", { timeStyle: "short", timeZone: "America/Edmonton" });
-  return `${day.format(new Date(s.start))} – ${end.format(new Date(s.end))} (Mountain Time)`;
-};
+  }).format(new Date(s.start))} (Mountain Time)`;
 
 const fmtMoment = (iso: string) =>
   new Intl.DateTimeFormat("en-CA", {
@@ -118,7 +118,10 @@ export default function ProviderRespondPage() {
       aria-labelledby="respond-title"
       className="relative min-h-screen w-full overflow-hidden bg-violet-50 px-4 py-6 pb-16 text-gray-900 sm:py-12"
     >
-      <div className="rs-rise relative z-10 mx-auto max-w-xl">{children}</div>
+      <div className="rs-rise relative z-10 mx-auto max-w-xl">
+        <img src={logoOrange} alt="Turile" className="mb-6 h-8 w-auto" />
+        {children}
+      </div>
     </section>
   );
 
@@ -172,9 +175,6 @@ export default function ProviderRespondPage() {
               The guest has been notified and their gift has been redeemed for this booking:
             </p>
             <p className="text-base font-semibold text-gray-900">{fmtSlot(outcome.booking.slot)}</p>
-            <p className="mt-1 text-sm text-gray-600">
-              {outcome.booking.partySize} {outcome.booking.partySize === 1 ? "guest" : "guests"}
-            </p>
             <p className="mt-5 text-xs tracking-wide text-gray-500">
               Booking reference: {outcome.booking.id}
             </p>
@@ -203,10 +203,10 @@ export default function ProviderRespondPage() {
         Can you host this one?
       </h1>
       <p className="mb-6 max-w-[52ch] text-lg leading-normal text-gray-600">
+        {/* Guest count lives on the purchased product, so it isn't echoed. */}
         Hi {s.providerName} — a Turile gift recipient would like to book{" "}
-        <strong className="font-semibold text-gray-900">{s.experienceTitle}</strong> for{" "}
-        {s.partySize} {s.partySize === 1 ? "guest" : "guests"}. Pick a time that works, suggest
-        another, or decline.
+        <strong className="font-semibold text-gray-900">{s.experienceTitle}</strong>. Pick a
+        time that works, suggest another, or decline.
       </p>
 
       {banner && (
@@ -351,7 +351,7 @@ export default function ProviderRespondPage() {
       </div>
 
       <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-gray-500">
-        <Flower className="h-3 w-3.5 text-brand-lime" />
+        <Flower className="h-3 w-3.5 text-brand-orange" />
         This link is personal and expires {fmtMoment(s.tokenExpiresAt)} (Mountain Time)
       </p>
     </>,

@@ -7,10 +7,10 @@
 // The recipient's email is not kept in the session, so the copy says
 // "we'll email you" instead of echoing an address.
 
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import type { BookingCreated } from "../lib/types";
 import { useVoucherSession } from "../session/VoucherSessionContext";
-import { Flower, Icon } from "../components/redeem/shared";
+import { Flower, Icon, PrimaryLink } from "../components/redeem/shared";
 
 // TODO: real experience photo from catalog
 const EXPERIENCE_THUMB = "https://picsum.photos/seed/turile-balloon-hero/200/200";
@@ -24,7 +24,6 @@ const fmt = new Intl.DateTimeFormat("en-CA", {
 });
 
 export default function BookingSentPage() {
-  const navigate = useNavigate();
   const { session } = useVoucherSession();
   const { state } = useLocation();
   const data = state as BookingCreated | null;
@@ -32,9 +31,8 @@ export default function BookingSentPage() {
 
   const exp = session!.voucher.pinnedExperience;
   const provider = exp?.provider.name ?? "Your provider";
-  const meta = [exp ? `by ${exp.provider.name}` : null, `${data.booking.partySize} ${data.booking.partySize === 1 ? "guest" : "guests"}`]
-    .filter(Boolean)
-    .join(" · ");
+  // Guest count lives in the purchased product variant, so it isn't echoed.
+  const meta = exp ? `by ${exp.provider.name}` : "";
 
   return (
     <section
@@ -90,7 +88,8 @@ export default function BookingSentPage() {
                   </span>
                   <Icon name="calendar" className="h-4 w-4 flex-none text-violet-700" />
                   <span className="text-base font-medium text-gray-900">
-                    {fmt.formatRange(new Date(s.start), new Date(s.end))}
+                    {/* arrival time only — the slot's end is technical */}
+                    {fmt.format(new Date(s.start))}
                   </span>
                 </div>
               ))}
@@ -99,13 +98,9 @@ export default function BookingSentPage() {
         </article>
         <div className="mt-3 text-xs text-gray-500">Request #{data.booking.id}</div>
 
-        <button
-          type="button"
-          onClick={() => navigate("/redeem/success")}
-          className="mt-6 w-full rounded-full border-2 border-brand-violet bg-transparent px-6 py-3 text-base font-semibold text-brand-violet transition hover:bg-violet-100"
-        >
-          Back to my gift
-        </button>
+        <PrimaryLink href="https://turil.ca" className="mt-6">
+          Explore more experiences <Icon name="arrow" className="h-5 w-5" strokeWidth={2.4} />
+        </PrimaryLink>
         <p className="mt-5 text-xs text-gray-500">
           Need to change something? Reply to your confirmation email or reach us at
           hello@turile.ca.

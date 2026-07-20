@@ -17,8 +17,8 @@ import {
   labelCls,
 } from "../components/redeem/shared";
 
-// TODO: real experience photo from catalog
-const HERO_IMAGE = "https://picsum.photos/seed/turile-balloon-hero/1000/1300";
+import heroImage from "../assets/redeem-pic.png";
+import logoOrange from "../assets/logo-orange.svg";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PIN_RE = /^\d{4}$/;
@@ -78,16 +78,14 @@ export default function RedeemPage() {
         {/* hero panel */}
         <div className="relative min-h-[260px] min-w-[300px] flex-[1_1_430px] overflow-hidden rounded-3xl shadow-xl shadow-brand-violet/20 sm:min-h-[520px]">
           <img
-            src={HERO_IMAGE}
-            alt="Your experience awaits"
+            src={heroImage}
+            alt="A collage of Turile experiences — helicopter flights, diving, hot-air balloons"
             className="absolute inset-0 h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gray-900/35" />
-          <Flower className="rs-pop absolute right-6 top-6 h-11 w-14 -rotate-6 text-brand-lime opacity-90" />
-          <div className="absolute inset-x-5 bottom-5 text-white sm:inset-x-8 sm:bottom-8">
-            {/* TODO: brand wordmark asset (export SVG is full-canvas, not a clean mark) */}
-            <div className="mb-4 font-display text-xl">turile</div>
-            <p className="m-0 max-w-[16ch] font-display text-2xl leading-tight sm:text-3xl">
+          <Flower className="rs-pop absolute right-6 top-6 h-11 w-14 -rotate-6 text-brand-orange opacity-90" />
+          <div className="absolute inset-x-5 bottom-5 sm:inset-x-8 sm:bottom-8">
+            <img src={logoOrange} alt="Turile" className="mb-4 h-9 w-auto sm:h-10" />
+            <p className="m-0 max-w-[16ch] font-display text-2xl leading-tight text-brand-violet sm:text-3xl">
               Give them a moment — not another thing.
             </p>
           </div>

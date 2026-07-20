@@ -2,11 +2,28 @@
 @tailwind components;
 @tailwind utilities;
 
+/* TAN-Songbird: the brand display face, self-hosted (owner-provided file,
+   2026-07-19). License note: the face is display-only; web-embedding rights
+   are the owner's call — rolling back is this one --font-display line. */
+@font-face {
+  font-family: "TAN Songbird";
+  src: url("../assets/fonts/tan-songbird.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
-  /* Display font placeholder: TAN-Songbird is licensed (display-only) and its
-     web use is NOT confirmed yet. Until then headings render in Poppins.
-     When the license is confirmed: load the font and change this one line. */
-  --font-display: "Poppins";
+  --font-display: "TAN Songbird";
+}
+
+/* TAN-Songbird's glyphs overflow the em box, so wrapped headings collide at
+   Tailwind's leading values. !important because font-size utilities inside
+   media queries (sm:text-4xl) also carry a line-height and would win the
+   cascade otherwise. Metrics correction only — not a design knob. */
+.font-display {
+  line-height: 1.6 !important;
+  letter-spacing: 0 !important;
 }
 
 /* Recipient-flow motion, ported from the Design export (_shared.jsx). */
