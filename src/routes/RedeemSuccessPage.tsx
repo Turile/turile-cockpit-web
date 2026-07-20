@@ -5,12 +5,21 @@
 // to redeem — same gate as the skeleton. The raw voucher status stays
 // exposed as data-status on the card for QA hooks; the visible layout
 // follows the design (balance is the headline number).
+//
+// Monetary variant (pinnedExperience === null — a pure gift-card purchase or
+// a pin already converted to open balance): the design export covers only the
+// pinned screen, so this branch reuses its grammar — the photo hero becomes a
+// violet flower band, the primary CTA becomes "Browse experiences", and the
+// "book by" chip gives way to a no-expiry reassurance (monetary value never
+// expires; only the experience pin is time-limited).
 
 import { useNavigate } from "react-router-dom";
 import { useVoucherSession } from "../session/VoucherSessionContext";
 import {
   Flower,
+  Icon,
   PrimaryButton,
+  PrimaryLink,
   formatDateLong,
   formatMoney,
 } from "../components/redeem/shared";
@@ -58,7 +67,7 @@ export default function RedeemSuccessPage() {
           data-status={voucher.status}
           className="overflow-hidden rounded-3xl border border-violet-100 bg-white text-left shadow-xl shadow-brand-violet/20"
         >
-          {exp && (
+          {exp ? (
             <div className="relative aspect-video bg-violet-100">
               <img
                 src={EXPERIENCE_IMAGE}
@@ -67,6 +76,15 @@ export default function RedeemSuccessPage() {
               />
               <span className="absolute left-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-brand-violet shadow-md shadow-brand-violet/10">
                 <Flower className="h-3 w-3.5 text-brand-orange" /> Pinned for you
+              </span>
+            </div>
+          ) : (
+            <div className="relative flex h-28 items-center justify-center overflow-hidden bg-brand-violet sm:h-32">
+              <Flower className="absolute -left-4 -top-7 h-24 w-28 -rotate-12 text-brand-pink opacity-70" />
+              <Flower className="absolute -bottom-9 right-5 h-28 w-32 rotate-6 text-brand-lime opacity-80" />
+              <Flower className="absolute right-[30%] -top-1 h-8 w-10 rotate-45 text-brand-orange opacity-80" />
+              <span className="relative inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-brand-violet shadow-md shadow-brand-violet/10">
+                <Flower className="h-3 w-3.5 text-brand-orange" /> Yours to choose
               </span>
             </div>
           )}
@@ -121,14 +139,26 @@ export default function RedeemSuccessPage() {
             Book your experience
           </PrimaryButton>
         )}
+        {!exp && (
+          /* TODO: point at the real catalogue URL on the storefront */
+          <PrimaryLink href="https://turile.ca" className="mt-6">
+            Browse experiences <Icon name="arrow" className="h-5 w-5" strokeWidth={2.4} />
+          </PrimaryLink>
+        )}
         <div className="mt-3">
-          {/* TODO: point at the real catalogue URL on the storefront */}
-          <a
-            href="https://turile.ca"
-            className="text-sm font-semibold text-brand-violet underline decoration-2 underline-offset-4"
-          >
-            {exp ? "Prefer something else? Browse experiences" : "Browse experiences"}
-          </a>
+          {exp ? (
+            /* TODO: point at the real catalogue URL on the storefront */
+            <a
+              href="https://turile.ca"
+              className="text-sm font-semibold text-brand-violet underline decoration-2 underline-offset-4"
+            >
+              Prefer something else? Browse experiences
+            </a>
+          ) : (
+            <span className="text-sm text-gray-500">
+              No rush and no expiry — this balance stays yours until you spend it.
+            </span>
+          )}
         </div>
         <div className="mt-6 text-xs tracking-wide text-gray-500">
           Gift code ending in •• {voucher.codeLast4}

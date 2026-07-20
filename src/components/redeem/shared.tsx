@@ -4,7 +4,7 @@
 // Purely presentational — no data, API or session awareness here.
 // Motion classes (.rs-rise / .rs-pop / .rs-spin) live in styles/index.css.
 
-import type { ButtonHTMLAttributes, HTMLAttributes } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, HTMLAttributes } from "react";
 
 export const cx = (...parts: Array<string | false | null | undefined>) =>
   parts.filter(Boolean).join(" ");
@@ -134,7 +134,12 @@ export const inputCls =
 
 export const labelCls = "mb-1.5 block text-sm font-medium text-gray-900";
 
-/* Primary lime CTA */
+/* Primary lime CTA — button and anchor twins share the same look */
+
+const primaryCtaCls =
+  "inline-flex w-full items-center justify-center gap-2.5 rounded-full border-2 border-transparent bg-brand-lime px-7 py-3.5 text-lg font-semibold text-brand-violet shadow-md shadow-brand-violet/10 transition";
+const primaryCtaHoverCls =
+  "hover:-translate-y-px hover:brightness-95 hover:shadow-lg hover:shadow-brand-violet/20 active:translate-y-0 active:scale-[.98]";
 
 type PrimaryButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean };
 
@@ -152,10 +157,8 @@ export function PrimaryButton({
       type={type}
       disabled={off}
       className={cx(
-        "inline-flex w-full items-center justify-center gap-2.5 rounded-full border-2 border-transparent bg-brand-lime px-7 py-3.5 text-lg font-semibold text-brand-violet shadow-md shadow-brand-violet/10 transition",
-        off
-          ? "cursor-not-allowed opacity-60"
-          : "hover:-translate-y-px hover:brightness-95 hover:shadow-lg hover:shadow-brand-violet/20 active:translate-y-0 active:scale-[.98]",
+        primaryCtaCls,
+        off ? "cursor-not-allowed opacity-60" : primaryCtaHoverCls,
         className,
       )}
       {...rest}
@@ -163,6 +166,18 @@ export function PrimaryButton({
       {loading && <Icon name="spinner" className="rs-spin h-4 w-4" strokeWidth={2.4} />}
       {children}
     </button>
+  );
+}
+
+export function PrimaryLink({
+  children,
+  className = "",
+  ...rest
+}: AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return (
+    <a className={cx(primaryCtaCls, primaryCtaHoverCls, className)} {...rest}>
+      {children}
+    </a>
   );
 }
 

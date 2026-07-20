@@ -11,7 +11,7 @@
 // resubmitting), rate_limited.
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { createBookingRequest } from "../lib/api";
 import type { ApiError, Slot } from "../lib/types";
 import { useVoucherSession } from "../session/VoucherSessionContext";
@@ -80,6 +80,11 @@ export default function BookingPage() {
 
   const expired = banner?.kind === "session_expired";
   const disabled = submitting || expired;
+
+  // Monetary vouchers have nothing to book here — the reveal screen sends
+  // them to the catalogue instead. Guards direct /redeem/booking visits.
+  // (After the hooks: keeps the hook order unconditional.)
+  if (!exp) return <Navigate to="/redeem/success" replace />;
 
   const setDraft = (i: number, k: keyof SlotDraft) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setDrafts((ds) => ds.map((d, j) => (j === i ? { ...d, [k]: e.target.value } : d)));
