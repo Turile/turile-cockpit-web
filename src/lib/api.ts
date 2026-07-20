@@ -7,7 +7,15 @@
 // - 429 → wait + Retry-After; 401 → session expired (caller clears session);
 // - 502 email_failed → state was created, resubmitting retries the send.
 
-import type { Activation, ApiError, ApiResult, BookingCreated, Slot } from "./types";
+import type {
+  Activation,
+  ApiError,
+  ApiResult,
+  BookingCreated,
+  ProviderBookingSummary,
+  ProviderResponseOutcome,
+  Slot,
+} from "./types";
 
 // Dev: same-origin path, proxied by Vite (see vite.config.ts — CORS).
 // Prod: direct call, the app origin is the one the functions allow.
@@ -111,6 +119,94 @@ export async function activateVoucher(input: {
             ? {
                 kind: "unavailable",
                 message: "We're briefly unavailable. Try again in a few minutes.",
+              }
+            : SERVER_ERROR;
+  return { ok: false, error };
+}
+
+// ── provider-respond ─────────────────────────────────────────────────────────
+// Provider-facing (magic link from the booking-request email). The backend
+// answers one flat 404 for invalid/expired/already-used tokens — mirrored
+// here as a single neutral message.
+
+const INVALID_LINK: ApiError = {
+  kind: "not_found",
+  message: "This link is invalid, expired, or has already been used.",
+};
+
+export async function verifyProviderToken(
+  token: string,
+): Promise<ApiResult<ProviderBookingSummary>> {
+  const res = await post("provider-respond", { token, action: "verify" });
+  if (!res) return { ok: false, error: NETWORK_ERROR };
+  const { status, body } = res;
+
+  if (status === 200) {
+    return {
+      ok: true,
+      data: {
+        experienceTitle: body.experience_title as string,
+        providerName: body.provider_name as string,
+        partySize: body.party_size as number,
+        proposedSlots: body.proposed_slots as Slot[],
+        tokenExpiresAt: body.token_expires_at as string,
+      },
+    };
+  }
+  return { ok: false, error: res.status === 404 ? INVALID_LINK : SERVER_ERROR };
+}
+
+export async function respondToBooking(
+  token: string,
+  input:
+    | { action: "accept"; slotIndex: number }
+    | { action: "decline"; note?: string }
+    | { action: "propose_alternative"; slot: Slot; note?: string },
+): Promise<ApiResult<ProviderResponseOutcome>> {
+  const payload =
+    input.action === "accept"
+      ? { token, action: "accept", slot_index: input.slotIndex }
+      : input.action === "decline"
+        ? { token, action: "decline", ...(input.note ? { note: input.note } : {}) }
+        : { token, action: "propose_alternative", slot: input.slot, ...(input.note ? { note: input.note } : {}) };
+  const res = await post("provider-respond", payload);
+  if (!res) return { ok: false, error: NETWORK_ERROR };
+  const { status, body } = res;
+
+  if (status === 200) {
+    if (body.response === "accepted") {
+      const b = body.booking as Record<string, any>;
+      return {
+        ok: true,
+        data: {
+          response: "accepted",
+          booking: { id: b.id, slot: b.slot, partySize: b.party_size },
+        },
+      };
+    }
+    return { ok: true, data: { response: body.response as "declined" | "alternative_proposed" } };
+  }
+
+  const error: ApiError =
+    status === 404
+      ? INVALID_LINK
+      : status === 400
+        ? {
+            kind: "invalid_input",
+            message: "Check the highlighted fields.",
+            fields: (body.details as string[]) ?? [],
+          }
+        : status === 409
+          ? {
+              kind: "insufficient_balance",
+              message:
+                "This gift's balance can't cover the booking right now. Nothing was changed — Turile will sort it out with the recipient, no action needed on your side.",
+            }
+          : status === 502
+            ? {
+                kind: "redeem_failed",
+                message:
+                  "We couldn't capture the payment just now — nothing was charged and your link still works. Please try again in a moment.",
               }
             : SERVER_ERROR;
   return { ok: false, error };

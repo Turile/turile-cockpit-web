@@ -50,6 +50,23 @@ export type BookingCreated = {
   resent: boolean;
 };
 
+// Provider magic-link flow (provider-respond edge function). The token from
+// the emailed URL is the only credential; verify is read-only, the other
+// actions burn it (accept additionally captures money server-side).
+
+export type ProviderBookingSummary = {
+  experienceTitle: string;
+  providerName: string;
+  partySize: number;
+  proposedSlots: Slot[];
+  tokenExpiresAt: string;
+};
+
+export type ProviderResponseOutcome =
+  | { response: "accepted"; booking: { id: string; slot: Slot; partySize: number } }
+  | { response: "declined" }
+  | { response: "alternative_proposed" };
+
 export type ApiErrorKind =
   | "invalid_input"
   | "not_found"
@@ -58,6 +75,8 @@ export type ApiErrorKind =
   | "not_bookable"
   | "already_booked"
   | "email_failed"
+  | "insufficient_balance"
+  | "redeem_failed"
   | "unavailable"
   | "server"
   | "network";
