@@ -80,6 +80,22 @@ export type ProviderResponseOutcome =
   | { response: "declined" }
   | { response: "alternative_proposed" };
 
+// Recipient magic-link flow (recipient-respond edge function) — the second,
+// bounded round: a provider proposed one alternative time, the recipient
+// can only accept or decline it (never counter). Same token-in-URL pattern
+// as the provider flow, independent of the activate-voucher session.
+
+export type RecipientAlternativeSummary = {
+  experienceTitle: string;
+  providerName: string;
+  suggestedSlot: Slot;
+  tokenExpiresAt: string;
+};
+
+export type RecipientResponseOutcome =
+  | { response: "accepted"; booking: { id: string; slot: Slot } }
+  | { response: "declined"; providerName: string; providerContactEmail: string | null };
+
 export type ApiErrorKind =
   | "invalid_input"
   | "not_found"

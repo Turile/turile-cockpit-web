@@ -14,6 +14,8 @@ import type {
   BookingCreated,
   ProviderBookingSummary,
   ProviderResponseOutcome,
+  RecipientAlternativeSummary,
+  RecipientResponseOutcome,
   Slot,
 } from "./types";
 
@@ -215,6 +217,74 @@ export async function respondToBooking(
                   "We couldn't capture the payment just now — nothing was charged and your link still works. Please try again in a moment.",
               }
             : SERVER_ERROR;
+  return { ok: false, error };
+}
+
+// ── recipient-respond ────────────────────────────────────────────────────────
+// The second, bounded round: a provider proposed one alternative time and
+// the recipient can only accept (redeems the gift card) or decline (nothing
+// charged). Same neutral-404 pattern as the provider flow.
+
+export async function verifyRecipientToken(
+  token: string,
+): Promise<ApiResult<RecipientAlternativeSummary>> {
+  const res = await post("recipient-respond", { token, action: "verify" });
+  if (!res) return { ok: false, error: NETWORK_ERROR };
+  const { status, body } = res;
+
+  if (status === 200) {
+    return {
+      ok: true,
+      data: {
+        experienceTitle: body.experience_title as string,
+        providerName: body.provider_name as string,
+        suggestedSlot: body.suggested_slot as Slot,
+        tokenExpiresAt: body.token_expires_at as string,
+      },
+    };
+  }
+  return { ok: false, error: status === 404 ? INVALID_LINK : SERVER_ERROR };
+}
+
+export async function respondToAlternative(
+  token: string,
+  action: "accept" | "decline",
+): Promise<ApiResult<RecipientResponseOutcome>> {
+  const res = await post("recipient-respond", { token, action });
+  if (!res) return { ok: false, error: NETWORK_ERROR };
+  const { status, body } = res;
+
+  if (status === 200) {
+    if (body.response === "accepted") {
+      const b = body.booking as Record<string, any>;
+      return { ok: true, data: { response: "accepted", booking: { id: b.id, slot: b.slot } } };
+    }
+    return {
+      ok: true,
+      data: {
+        response: "declined",
+        providerName: body.provider_name as string,
+        providerContactEmail: (body.provider_contact_email as string | null) ?? null,
+      },
+    };
+  }
+
+  const error: ApiError =
+    status === 404
+      ? INVALID_LINK
+      : status === 409
+        ? {
+            kind: "insufficient_balance",
+            message:
+              "This gift's balance can't cover the booking right now. Nothing was changed — Turile will follow up, no action needed on your side.",
+          }
+        : status === 502
+          ? {
+              kind: "redeem_failed",
+              message:
+                "We couldn't capture the payment just now — nothing was charged and your link still works. Please try again in a moment.",
+            }
+          : SERVER_ERROR;
   return { ok: false, error };
 }
 

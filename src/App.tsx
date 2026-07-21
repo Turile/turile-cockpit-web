@@ -5,6 +5,7 @@ import RedeemSuccessPage from "./routes/RedeemSuccessPage";
 import BookingPage from "./routes/BookingPage";
 import BookingSentPage from "./routes/BookingSentPage";
 import ProviderRespondPage from "./routes/ProviderRespondPage";
+import RecipientRespondPage from "./routes/RecipientRespondPage";
 
 // TODO(design): app shell (header with brand mark, background, footer).
 // Keep the shell here so route components stay pure screens.
@@ -42,6 +43,9 @@ export default function App() {
           {/* Provider side: authenticated by the emailed magic-link token,
               deliberately outside the recipient session guard. */}
           <Route path="/provider/respond/:token" element={<ProviderRespondPage />} />
+          {/* Recipient side of the second booking round: a different emailed
+              magic-link token, independent of the activate-voucher session. */}
+          <Route path="/recipient/respond/:token" element={<RecipientRespondPage />} />
           <Route path="*" element={<Navigate to="/redeem" replace />} />
         </Routes>
       </main>
