@@ -9,6 +9,19 @@ export type PinnedExperience = {
   slug: string;
   retailPriceCents: number;
   currency: string;
+  // Catalog content synced from Shopify (scripts/import-catalog-from-shopify.mjs).
+  // Metafields are inconsistent across products — any of these can be null;
+  // that's real upstream sparseness, not a bug, and the UI must degrade
+  // gracefully (render only what's present).
+  imageUrl: string | null;
+  city: string | null;
+  participants: string | null;
+  locationText: string | null;
+  duration: string | null;
+  // The voucher's OWN purchase-time snapshot (which variant was bought),
+  // not a live catalog field — null for every voucher minted before
+  // 2026-07-20 (pre-migration), deliberately never backfilled.
+  variantTitle: string | null;
   provider: {
     name: string;
     slug: string;

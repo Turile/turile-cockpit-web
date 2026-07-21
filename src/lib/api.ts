@@ -89,6 +89,12 @@ export async function activateVoucher(input: {
                 slug: v.pinned_experience.slug,
                 retailPriceCents: v.pinned_experience.retail_price_cents,
                 currency: v.pinned_experience.currency,
+                imageUrl: v.pinned_experience.image_url ?? null,
+                city: v.pinned_experience.city ?? null,
+                participants: v.pinned_experience.participants ?? null,
+                locationText: v.pinned_experience.location_text ?? null,
+                duration: v.pinned_experience.duration ?? null,
+                variantTitle: v.pinned_experience.variant_title ?? null,
                 provider: {
                   name: v.pinned_experience.provider.name,
                   slug: v.pinned_experience.provider.slug,

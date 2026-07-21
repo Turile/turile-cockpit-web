@@ -24,9 +24,6 @@ import {
   formatMoney,
 } from "../components/redeem/shared";
 
-// TODO: real experience photo from catalog
-const EXPERIENCE_IMAGE = "https://picsum.photos/seed/turile-balloon-hero/900/560";
-
 export default function RedeemSuccessPage() {
   const navigate = useNavigate();
   const { session } = useVoucherSession();
@@ -67,14 +64,26 @@ export default function RedeemSuccessPage() {
           data-status={voucher.status}
           className="overflow-hidden rounded-3xl border border-violet-100 bg-white text-left shadow-xl shadow-brand-violet/20"
         >
-          {exp ? (
+          {exp && exp.imageUrl ? (
             <div className="relative aspect-video bg-violet-100">
               <img
-                src={EXPERIENCE_IMAGE}
+                src={exp.imageUrl}
                 alt={exp.title}
                 className="absolute inset-0 h-full w-full object-cover"
               />
               <span className="absolute left-3.5 top-3.5 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-brand-violet shadow-md shadow-brand-violet/10">
+                <Flower className="h-3 w-3.5 text-brand-orange" /> Pinned for you
+              </span>
+            </div>
+          ) : exp ? (
+            // Pinned, but the catalog sync hasn't given us a photo yet
+            // (older voucher, or the product genuinely has none) — same
+            // flower-band treatment as the no-experience case, different copy.
+            <div className="relative flex h-28 items-center justify-center overflow-hidden bg-brand-violet sm:h-32">
+              <Flower className="absolute -left-4 -top-7 h-24 w-28 -rotate-12 text-brand-pink opacity-70" />
+              <Flower className="absolute -bottom-9 right-5 h-28 w-32 rotate-6 text-brand-lime opacity-80" />
+              <Flower className="absolute right-[30%] -top-1 h-8 w-10 rotate-45 text-brand-orange opacity-80" />
+              <span className="relative inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-brand-violet shadow-md shadow-brand-violet/10">
                 <Flower className="h-3 w-3.5 text-brand-orange" /> Pinned for you
               </span>
             </div>
@@ -97,6 +106,36 @@ export default function RedeemSuccessPage() {
                 <div className="mt-1 text-sm text-gray-500">
                   by {exp.provider.name} · {formatMoney(exp.retailPriceCents, exp.currency)} value
                 </div>
+                {/* Each chip renders only when the catalog sync / purchase
+                    snapshot actually has it — sparse metafields and
+                    pre-migration vouchers are expected, not an error. */}
+                {(exp.variantTitle || exp.city || exp.participants || exp.duration) && (
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {exp.variantTitle && (
+                      <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                        {exp.variantTitle}
+                      </span>
+                    )}
+                    {exp.city && (
+                      <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                        📍 {exp.city}
+                      </span>
+                    )}
+                    {exp.participants && (
+                      <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                        👥 {exp.participants}
+                      </span>
+                    )}
+                    {exp.duration && (
+                      <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                        ⏱ {exp.duration}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {exp.locationText && (
+                  <p className="mt-2.5 text-sm leading-normal text-gray-600">{exp.locationText}</p>
+                )}
               </>
             ) : (
               <>
