@@ -96,6 +96,33 @@ export type RecipientResponseOutcome =
   | { response: "accepted"; booking: { id: string; slot: Slot } }
   | { response: "declined"; providerName: string; providerContactEmail: string | null };
 
+// Exchange (exchange edge function) — browse comes from a direct PostgREST
+// read (anon key, RLS already allows public read of active experiences),
+// not an edge function; only starting/completing an exchange goes through
+// the session-gated endpoint.
+
+export type BrowseExperience = {
+  id: string;
+  title: string;
+  slug: string;
+  retailPriceCents: number;
+  currency: string;
+  imageUrl: string | null;
+  city: string | null;
+  participants: string | null;
+  duration: string | null;
+  providerName: string;
+};
+
+export type ExchangeOutcome =
+  | {
+      mode: "repinned";
+      sessionToken: string;
+      sessionExpiresAt: string;
+      voucher: { balanceCents: number; currency: string; pinExpiresAt: string | null; pinnedExperience: PinnedExperience | null };
+    }
+  | { mode: "checkout_required"; checkoutUrl: string; priceDeltaCents: number; currency: string; expiresAt: string };
+
 export type ApiErrorKind =
   | "invalid_input"
   | "not_found"
@@ -106,6 +133,9 @@ export type ApiErrorKind =
   | "email_failed"
   | "insufficient_balance"
   | "redeem_failed"
+  | "not_exchangeable"
+  | "pending_topup_exists"
+  | "checkout_failed"
   | "unavailable"
   | "server"
   | "network";
@@ -115,6 +145,7 @@ export type ApiError = {
   message: string; // ready-to-render UI copy (English, recipient-facing tone)
   fields?: string[]; // invalid_input: offending fields
   retryAfterS?: number; // rate_limited: from Retry-After header
+  expiresAt?: string; // pending_topup_exists: when the blocking top-up expires
 };
 
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError };

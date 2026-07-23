@@ -16,6 +16,10 @@ type SessionContextValue = {
   session: Session | null;
   startSession: (a: Activation) => void;
   clearSession: () => void;
+  /** Refreshes the token (exchange mints a fresh one) and merges a partial
+   *  voucher patch — e.g. after an instant re-pin, without refetching
+   *  fields (codeLast4, status, initialValueCents...) that didn't change. */
+  applyExchange: (sessionToken: string, sessionExpiresAt: string, voucherPatch: Partial<VoucherState>) => void;
   /** Live session with a non-expired token. */
   isActive: () => boolean;
 };
@@ -29,14 +33,22 @@ export function VoucherSessionProvider({ children }: { children: React.ReactNode
     setSession({ token: a.sessionToken, expiresAt: a.sessionExpiresAt, voucher: a.voucher });
   }, []);
   const clearSession = useCallback(() => setSession(null), []);
+  const applyExchange = useCallback(
+    (sessionToken: string, sessionExpiresAt: string, voucherPatch: Partial<VoucherState>) => {
+      setSession((prev) =>
+        prev ? { token: sessionToken, expiresAt: sessionExpiresAt, voucher: { ...prev.voucher, ...voucherPatch } } : prev,
+      );
+    },
+    [],
+  );
   const isActive = useCallback(
     () => session !== null && Date.parse(session.expiresAt) > Date.now(),
     [session],
   );
 
   const value = useMemo(
-    () => ({ session, startSession, clearSession, isActive }),
-    [session, startSession, clearSession, isActive],
+    () => ({ session, startSession, clearSession, applyExchange, isActive }),
+    [session, startSession, clearSession, applyExchange, isActive],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

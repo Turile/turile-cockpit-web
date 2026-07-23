@@ -13,13 +13,12 @@
 // "book by" chip gives way to a no-expiry reassurance (monetary value never
 // expires; only the experience pin is time-limited).
 
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useVoucherSession } from "../session/VoucherSessionContext";
 import {
   Flower,
   Icon,
   PrimaryButton,
-  PrimaryLink,
   formatDateLong,
   formatMoney,
 } from "../components/redeem/shared";
@@ -179,18 +178,18 @@ export default function RedeemSuccessPage() {
           </PrimaryButton>
         )}
         {!exp && (
-          <PrimaryLink href="https://turil.ca" className="mt-6">
+          <PrimaryButton className="mt-6" onClick={() => navigate("/redeem/exchange")}>
             Browse experiences <Icon name="arrow" className="h-5 w-5" strokeWidth={2.4} />
-          </PrimaryLink>
+          </PrimaryButton>
         )}
         <div className="mt-3">
           {exp ? (
-            <a
-              href="https://turil.ca"
+            <Link
+              to="/redeem/exchange"
               className="text-sm font-semibold text-brand-violet underline decoration-2 underline-offset-4"
             >
               Prefer something else? Browse experiences
-            </a>
+            </Link>
           ) : (
             <span className="text-sm text-gray-500">
               No rush and no expiry — this balance stays yours until you spend it.
