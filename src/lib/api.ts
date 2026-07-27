@@ -25,11 +25,6 @@ import type {
 // Prod: direct call, the app origin is the one the functions allow.
 const BASE = import.meta.env.DEV ? "" : (import.meta.env.VITE_SUPABASE_URL as string);
 
-// The Supabase REST endpoint (unlike the edge functions) sends permissive
-// CORS by default — no dev proxy needed, always call it directly.
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
 const NETWORK_ERROR: ApiError = {
   kind: "network",
   message: "Looks like you're offline. Check your connection and try again.",
@@ -367,16 +362,19 @@ export async function createBookingRequest(
   return { ok: false, error };
 }
 
-// ── browse (direct PostgREST read, anon key — no edge function) ─────────────
+// ── browse (catalog function — session-gated, service role) ─────────────────
+// Not a direct anon-key PostgREST read: providers has zero grants/policies
+// for anon by design (diagnosed 2026-07-24), and browsing is only ever
+// reachable from an active session anyway — catalog does the join safely
+// server-side and excludes the voucher's own pinned experience.
 
-export async function browseExperiences(): Promise<ApiResult<BrowseExperience[]>> {
-  try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/experiences?status=eq.active&select=id,title,slug,retail_price_cents,currency,image_url,city,participants,duration,provider:providers(name)&order=title.asc`,
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } },
-    );
-    if (!res.ok) return { ok: false, error: SERVER_ERROR };
-    const rows = (await res.json()) as Array<Record<string, any>>;
+export async function browseExperiences(sessionToken: string): Promise<ApiResult<BrowseExperience[]>> {
+  const res = await post("catalog", { session_token: sessionToken });
+  if (!res) return { ok: false, error: NETWORK_ERROR };
+  const { status, body } = res;
+
+  if (status === 200) {
+    const rows = (body.experiences as Array<Record<string, any>>) ?? [];
     return {
       ok: true,
       data: rows.map((r) => ({
@@ -392,9 +390,11 @@ export async function browseExperiences(): Promise<ApiResult<BrowseExperience[]>
         providerName: r.provider?.name ?? "",
       })),
     };
-  } catch {
-    return { ok: false, error: NETWORK_ERROR };
   }
+  if (status === 401) {
+    return { ok: false, error: { kind: "session_expired", message: "Your session timed out. Activate your gift again to keep going." } };
+  }
+  return { ok: false, error: SERVER_ERROR };
 }
 
 // ── exchange ─────────────────────────────────────────────────────────────────

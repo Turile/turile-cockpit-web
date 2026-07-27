@@ -21,8 +21,6 @@ type Phase = "loading" | "error" | "ready";
 export default function ExchangePage() {
   const navigate = useNavigate();
   const { session, applyExchange } = useVoucherSession();
-  const voucher = session!.voucher;
-  const currentSlug = voucher.pinnedExperience?.slug ?? null;
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [experiences, setExperiences] = useState<BrowseExperience[]>([]);
@@ -33,11 +31,15 @@ export default function ExchangePage() {
 
   useEffect(() => {
     let alive = true;
-    browseExperiences().then((r) => {
+    // The currently-pinned experience is excluded server-side (catalog
+    // knows the voucher from the session token) — no client-side filter.
+    browseExperiences(session!.token).then((r) => {
       if (!alive) return;
       if (r.ok) {
-        setExperiences(r.data.filter((e) => e.slug !== currentSlug));
+        setExperiences(r.data);
         setPhase("ready");
+      } else if (r.error.kind === "session_expired") {
+        navigate("/redeem");
       } else {
         setPhase("error");
       }
