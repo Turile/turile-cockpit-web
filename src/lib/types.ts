@@ -96,10 +96,9 @@ export type RecipientResponseOutcome =
   | { response: "accepted"; booking: { id: string; slot: Slot } }
   | { response: "declined"; providerName: string; providerContactEmail: string | null };
 
-// Exchange (exchange edge function) — browse comes from a direct PostgREST
-// read (anon key, RLS already allows public read of active experiences),
-// not an edge function; only starting/completing an exchange goes through
-// the session-gated endpoint.
+// Exchange (exchange edge function). Browsing goes through the session-
+// gated `catalog` function (service role — providers stays fully closed to
+// anon, diagnosed 2026-07-24), not a direct PostgREST read.
 
 export type BrowseExperience = {
   id: string;
@@ -112,6 +111,19 @@ export type BrowseExperience = {
   participants: string | null;
   duration: string | null;
   providerName: string;
+};
+
+// Mirrors _shared/pricing.ts's DeltaRangeKey on the backend — kept in sync
+// by convention, like every other request-shape enum in this file. Only
+// the KEYS need to match; the bucket math itself lives server-side.
+export type DeltaRangeKey = "free" | "0-50" | "50-100" | "100-250" | "250-plus";
+export type CatalogSort = "price_asc" | "price_desc" | "name_asc" | "newest";
+
+export type CatalogPage = {
+  experiences: BrowseExperience[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 };
 
 export type ExchangeOutcome =

@@ -12,7 +12,9 @@ import type {
   ApiError,
   ApiResult,
   BookingCreated,
-  BrowseExperience,
+  CatalogPage,
+  CatalogSort,
+  DeltaRangeKey,
   ExchangeOutcome,
   ProviderBookingSummary,
   ProviderResponseOutcome,
@@ -368,8 +370,26 @@ export async function createBookingRequest(
 // reachable from an active session anyway — catalog does the join safely
 // server-side and excludes the voucher's own pinned experience.
 
-export async function browseExperiences(sessionToken: string): Promise<ApiResult<BrowseExperience[]>> {
-  const res = await post("catalog", { session_token: sessionToken });
+export async function browseExperiences(
+  sessionToken: string,
+  input: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    sort?: CatalogSort;
+    deltaRange?: DeltaRangeKey;
+    balanceCents?: number;
+  } = {},
+): Promise<ApiResult<CatalogPage>> {
+  const res = await post("catalog", {
+    session_token: sessionToken,
+    page: input.page,
+    page_size: input.pageSize,
+    search: input.search,
+    sort: input.sort,
+    delta_range: input.deltaRange,
+    balance_cents: input.balanceCents,
+  });
   if (!res) return { ok: false, error: NETWORK_ERROR };
   const { status, body } = res;
 
@@ -377,18 +397,23 @@ export async function browseExperiences(sessionToken: string): Promise<ApiResult
     const rows = (body.experiences as Array<Record<string, any>>) ?? [];
     return {
       ok: true,
-      data: rows.map((r) => ({
-        id: r.id,
-        title: r.title,
-        slug: r.slug,
-        retailPriceCents: r.retail_price_cents,
-        currency: r.currency,
-        imageUrl: r.image_url ?? null,
-        city: r.city ?? null,
-        participants: r.participants ?? null,
-        duration: r.duration ?? null,
-        providerName: r.provider?.name ?? "",
-      })),
+      data: {
+        experiences: rows.map((r) => ({
+          id: r.id,
+          title: r.title,
+          slug: r.slug,
+          retailPriceCents: r.retail_price_cents,
+          currency: r.currency,
+          imageUrl: r.image_url ?? null,
+          city: r.city ?? null,
+          participants: r.participants ?? null,
+          duration: r.duration ?? null,
+          providerName: r.provider?.name ?? "",
+        })),
+        totalCount: (body.total_count as number) ?? 0,
+        page: (body.page as number) ?? 1,
+        pageSize: (body.page_size as number) ?? rows.length,
+      },
     };
   }
   if (status === 401) {
