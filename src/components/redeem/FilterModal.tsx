@@ -6,8 +6,17 @@
 // LOCATION (real cities from the `catalog` function's facets) and TOP-UP
 // (replaces PRICE — our equivalent, already wired end-to-end). CATEGORY is
 // deferred until `experiences` gains a category column (2026-07-27).
+//
+// Rendered via a portal to document.body (2026-07-28) — this component is
+// `position: fixed`, and ExchangePage wraps its content in a `.rs-rise`
+// entrance-animation div whose `animation: ... both` leaves a non-`none`
+// `transform` behind after it finishes, which turns any fixed descendant's
+// containing block into that div instead of the viewport. A portal makes
+// the React tree position irrelevant, closing that bug as a class rather
+// than relying on every future caller remembering to mount outside it.
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { DeltaRangeKey } from "../../lib/types";
 import { Icon, cx } from "./shared";
 
@@ -71,7 +80,7 @@ export function FilterModal({
 
   const tick = <Icon name="check" className="fm-icon tick" strokeWidth={2.6} />;
 
-  return (
+  return createPortal(
     <div className="turile">
       <div
         className={cx("fm-overlay", isOpenClass && "is-open")}
@@ -149,6 +158,7 @@ export function FilterModal({
           </footer>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

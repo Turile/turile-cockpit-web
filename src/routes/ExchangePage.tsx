@@ -22,6 +22,7 @@ import type { ApiError, BrowseExperience, CatalogSort, DeltaRangeKey } from "../
 import { useVoucherSession } from "../session/VoucherSessionContext";
 import { AlertBanner, Flower, Icon, PrimaryButton, cx, formatMoney } from "../components/redeem/shared";
 import { FilterModal } from "../components/redeem/FilterModal";
+import { ExchangeActionBar } from "../components/redeem/ExchangeActionBar";
 
 const PAGE_SIZE = 24;
 
@@ -69,6 +70,7 @@ export default function ExchangePage() {
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState<ApiError | null>(null);
   const [repinnedTitle, setRepinnedTitle] = useState<string | null>(null);
+  const [barHeight, setBarHeight] = useState(0);
 
   const fetchPage = async (pageNum: number, append: boolean) => {
     if (append) setLoadingMore(true);
@@ -189,32 +191,6 @@ export default function ExchangePage() {
     );
   }
 
-  const purchasePanel = (
-    <div className="rounded-3xl border border-violet-100 bg-white p-5 shadow-xl shadow-brand-violet/20">
-      {selected ? (
-        <>
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Exchange for</div>
-          <div className="mt-1 text-lg font-semibold leading-snug text-gray-900">{selected.title}</div>
-          <div className="mt-1 text-sm text-gray-500">{formatMoney(selected.retailPriceCents, selected.currency)}</div>
-          <PrimaryButton className="mt-4" loading={submitting} disabled={submitting} onClick={() => void confirm()}>
-            Confirm exchange
-          </PrimaryButton>
-          <button
-            type="button"
-            onClick={() => setSelected(null)}
-            disabled={submitting}
-            className="mt-2.5 w-full text-center text-sm font-semibold text-gray-600 underline decoration-2 underline-offset-4"
-          >
-            Cancel
-          </button>
-        </>
-      ) : (
-        <p className="text-sm leading-normal text-gray-500">
-          Pick an experience from the list — equal or cheaper swaps instantly, pricier just needs the difference.
-        </p>
-      )}
-    </div>
-  );
 
   return (
     <section
@@ -320,113 +296,95 @@ export default function ExchangePage() {
           </AlertBanner>
         )}
 
-        <div className="lg:grid lg:grid-cols-[1fr_300px] lg:items-start lg:gap-6">
-          <div>
-            {phase === "loading" && (
-              <div className="flex items-center justify-center gap-3 py-16 text-gray-600">
-                <Icon name="spinner" className="rs-spin h-5 w-5" strokeWidth={2.4} /> Loading experiences…
-              </div>
-            )}
+        {/* Bottom padding clears the fixed ExchangeActionBar when it's showing — barHeight
+            is the bar's own measured rendered height (its internal safe-area padding is
+            already baked into that measurement, so this doesn't double up env()). */}
+        <div style={selected ? { paddingBottom: barHeight + 16 } : undefined}>
+          {phase === "loading" && (
+            <div className="flex items-center justify-center gap-3 py-16 text-gray-600">
+              <Icon name="spinner" className="rs-spin h-5 w-5" strokeWidth={2.4} /> Loading experiences…
+            </div>
+          )}
 
-            {phase === "error" && (
-              <AlertBanner>Couldn&rsquo;t load the catalogue right now. Please try again shortly.</AlertBanner>
-            )}
+          {phase === "error" && (
+            <AlertBanner>Couldn&rsquo;t load the catalogue right now. Please try again shortly.</AlertBanner>
+          )}
 
-            {phase === "ready" && experiences.length === 0 && (
-              <AlertBanner tone="muted">No experiences match your search — try different filters.</AlertBanner>
-            )}
+          {phase === "ready" && experiences.length === 0 && (
+            <AlertBanner tone="muted">No experiences match your search — try different filters.</AlertBanner>
+          )}
 
-            {phase === "ready" && experiences.length > 0 && (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {experiences.map((e) => {
-                    const isSelected = selected?.id === e.id;
-                    return (
-                      <button
-                        key={e.id}
-                        type="button"
-                        onClick={() => setSelected(e)}
-                        disabled={submitting}
-                        className={cx(
-                          "overflow-hidden rounded-2xl border-2 bg-white text-left shadow-md shadow-brand-violet/10 transition",
-                          isSelected ? "border-brand-violet" : "border-violet-100 hover:border-violet-700",
-                        )}
-                      >
-                        {e.imageUrl ? (
-                          <div className="aspect-video bg-violet-100">
-                            <img src={e.imageUrl} alt={e.title} className="h-full w-full object-cover" />
-                          </div>
-                        ) : (
-                          <div className="flex aspect-video items-center justify-center bg-violet-100">
-                            <Flower className="h-8 w-10 text-brand-violet opacity-60" />
-                          </div>
-                        )}
-                        <div className="p-4">
-                          <div className="text-base font-semibold leading-snug text-gray-900">{e.title}</div>
-                          <div className="mt-0.5 text-sm text-gray-500">
-                            by {e.providerName} · {formatMoney(e.retailPriceCents, e.currency)}
-                          </div>
-                          {(e.city || e.participants || e.duration) && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {e.city && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">📍 {e.city}</span>}
-                              {e.participants && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">👥 {e.participants}</span>}
-                              {e.duration && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">⏱ {e.duration}</span>}
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-6 text-center">
-                  <p className="mb-3 text-sm text-gray-500">
-                    Showing {experiences.length} of {totalCount}
-                  </p>
-                  {experiences.length < totalCount && (
+          {phase === "ready" && experiences.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {experiences.map((e) => {
+                  const isSelected = selected?.id === e.id;
+                  return (
                     <button
+                      key={e.id}
                       type="button"
-                      onClick={loadMore}
-                      disabled={loadingMore}
-                      className="inline-flex items-center gap-2 rounded-full border-2 border-violet-100 bg-white px-6 py-3 text-sm font-semibold text-brand-violet transition hover:border-violet-700 disabled:opacity-60"
+                      onClick={() => setSelected(e)}
+                      disabled={submitting}
+                      className={cx(
+                        "overflow-hidden rounded-2xl border-2 bg-white text-left shadow-md shadow-brand-violet/10 transition",
+                        isSelected ? "border-brand-violet" : "border-violet-100 hover:border-violet-700",
+                      )}
                     >
-                      {loadingMore && <Icon name="spinner" className="rs-spin h-4 w-4" strokeWidth={2.4} />}
-                      Load more experiences
+                      {e.imageUrl ? (
+                        <div className="aspect-video bg-violet-100">
+                          <img src={e.imageUrl} alt={e.title} className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="flex aspect-video items-center justify-center bg-violet-100">
+                          <Flower className="h-8 w-10 text-brand-violet opacity-60" />
+                        </div>
+                      )}
+                      <div className="p-4">
+                        <div className="text-base font-semibold leading-snug text-gray-900">{e.title}</div>
+                        <div className="mt-0.5 text-sm text-gray-500">
+                          by {e.providerName} · {formatMoney(e.retailPriceCents, e.currency)}
+                        </div>
+                        {(e.city || e.participants || e.duration) && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {e.city && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">📍 {e.city}</span>}
+                            {e.participants && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">👥 {e.participants}</span>}
+                            {e.duration && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">⏱ {e.duration}</span>}
+                          </div>
+                        )}
+                      </div>
                     </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+                  );
+                })}
+              </div>
 
-          {/* Desktop: sticky purchase panel. Mobile: fixed bottom bar below. */}
-          <div className="hidden lg:sticky lg:top-6 lg:block">{purchasePanel}</div>
+              <div className="mt-6 text-center">
+                <p className="mb-3 text-sm text-gray-500">
+                  Showing {experiences.length} of {totalCount}
+                </p>
+                {experiences.length < totalCount && (
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="inline-flex items-center gap-2 rounded-full border-2 border-violet-100 bg-white px-6 py-3 text-sm font-semibold text-brand-violet transition hover:border-violet-700 disabled:opacity-60"
+                  >
+                    {loadingMore && <Icon name="spinner" className="rs-spin h-4 w-4" strokeWidth={2.4} />}
+                    Load more experiences
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {selected && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-violet-100 bg-white p-4 shadow-[0_-8px_24px_rgba(60,17,174,0.12)] lg:hidden">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Exchange for</div>
-              <div className="truncate text-base font-semibold text-gray-900">{selected.title}</div>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setSelected(null)}
-                disabled={submitting}
-                className="text-sm font-semibold text-gray-600 underline decoration-2 underline-offset-4"
-              >
-                Cancel
-              </button>
-              <PrimaryButton className="w-auto px-6" loading={submitting} disabled={submitting} onClick={() => void confirm()}>
-                Confirm exchange
-              </PrimaryButton>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExchangeActionBar
+        selected={selected}
+        submitting={submitting}
+        onConfirm={() => void confirm()}
+        onCancel={() => setSelected(null)}
+        onHeightChange={setBarHeight}
+      />
     </section>
   );
 }

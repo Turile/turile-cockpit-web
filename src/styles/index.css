@@ -495,3 +495,106 @@
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ============================================================
+   Exchange screen: sticky action bar, ported from
+   _design-export/Turile_Product_Page_v4.html's .buybar (mobile sticky
+   buy bar) — 2026-07-28. One implementation for both mobile and desktop.
+   z-index: 60, same as the export — the filter modal's .fm-overlay
+   (z-index: 1000, above) always sits above this bar, never under it.
+   ============================================================ */
+.turile .buybar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--white);
+  border-top: 1px solid var(--hairline);
+  box-shadow: 0 -14px 34px -12px rgba(60, 17, 174, 0.18);
+  padding: 12px clamp(16px, 4vw, 40px) max(12px, env(safe-area-inset-bottom));
+}
+.turile .buybar-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.turile .buybar-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.turile .buybar-total .bb-label {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+}
+.turile .buybar-total .bb-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+.turile .buybar-total .bb-price {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.turile .buybar-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 12px;
+}
+.turile .buybar-cancel {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  padding: 8px 4px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.turile .buybar .btn-primary {
+  padding: 14px 18px;
+  font-size: var(--fs-body);
+  white-space: nowrap;
+}
+.turile .buybar .btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
+}
+.turile .buybar-rule {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+/* Narrow phones: two buttons + name + price don't fit one row without
+   crushing the name to a couple of characters — stack actions below. */
+@media (max-width: 400px) {
+  .turile .buybar-row {
+    flex-wrap: wrap;
+  }
+  .turile .buybar-total {
+    flex-basis: 100%;
+  }
+  .turile .buybar-actions {
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+}
