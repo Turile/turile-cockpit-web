@@ -20,9 +20,10 @@ import { useNavigate } from "react-router-dom";
 import { browseExperiences, startExchange } from "../lib/api";
 import type { ApiError, BrowseExperience, CatalogSort, DeltaRangeKey } from "../lib/types";
 import { useVoucherSession } from "../session/VoucherSessionContext";
-import { AlertBanner, Flower, Icon, PrimaryButton, cx, formatMoney } from "../components/redeem/shared";
+import { AlertBanner, Flower, Icon, PrimaryButton, cx } from "../components/redeem/shared";
 import { FilterModal } from "../components/redeem/FilterModal";
 import { ExchangeActionBar } from "../components/redeem/ExchangeActionBar";
+import { ExperienceCard } from "../components/redeem/ExperienceCard";
 
 const PAGE_SIZE = 24;
 
@@ -317,44 +318,15 @@ export default function ExchangePage() {
           {phase === "ready" && experiences.length > 0 && (
             <>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {experiences.map((e) => {
-                  const isSelected = selected?.id === e.id;
-                  return (
-                    <button
-                      key={e.id}
-                      type="button"
-                      onClick={() => setSelected(e)}
-                      disabled={submitting}
-                      className={cx(
-                        "overflow-hidden rounded-2xl border-2 bg-white text-left shadow-md shadow-brand-violet/10 transition",
-                        isSelected ? "border-brand-violet" : "border-violet-100 hover:border-violet-700",
-                      )}
-                    >
-                      {e.imageUrl ? (
-                        <div className="aspect-video bg-violet-100">
-                          <img src={e.imageUrl} alt={e.title} className="h-full w-full object-cover" />
-                        </div>
-                      ) : (
-                        <div className="flex aspect-video items-center justify-center bg-violet-100">
-                          <Flower className="h-8 w-10 text-brand-violet opacity-60" />
-                        </div>
-                      )}
-                      <div className="p-4">
-                        <div className="text-base font-semibold leading-snug text-gray-900">{e.title}</div>
-                        <div className="mt-0.5 text-sm text-gray-500">
-                          by {e.providerName} · {formatMoney(e.retailPriceCents, e.currency)}
-                        </div>
-                        {(e.city || e.participants || e.duration) && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            {e.city && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">📍 {e.city}</span>}
-                            {e.participants && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">👥 {e.participants}</span>}
-                            {e.duration && <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-gray-700">⏱ {e.duration}</span>}
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
+                {experiences.map((e) => (
+                  <ExperienceCard
+                    key={e.id}
+                    experience={e}
+                    isSelected={selected?.id === e.id}
+                    disabled={submitting}
+                    onSelect={() => setSelected(e)}
+                  />
+                ))}
               </div>
 
               <div className="mt-6 text-center">
