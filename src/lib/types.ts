@@ -124,6 +124,7 @@ export type CatalogPage = {
   totalCount: number;
   page: number;
   pageSize: number;
+  cityFacets: string[];
 };
 
 export type ExchangeOutcome =

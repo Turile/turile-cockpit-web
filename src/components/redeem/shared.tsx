@@ -112,6 +112,12 @@ const PATHS = {
       <line x1="16" x2="16" y1="18" y2="22" />
     </>
   ),
+  x: (
+    <>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof PATHS;

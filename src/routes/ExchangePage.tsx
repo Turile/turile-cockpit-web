@@ -1,25 +1,27 @@
 // Browse + exchange screen (/redeem/exchange) — spec §5.4's three
 // scenarios, one screen: pick any active experience, and the backend
 // decides whether it's an instant re-pin (equal/cheaper, or a monetary
-// voucher's first-ever pin) or needs a top-up (more expensive). No design
-// export exists for this screen; the card/chip grammar comes from
-// RedeemSuccessPage, the search+filter bar and sticky purchase panel are
-// adapted from the real storefront's product/filter patterns (2026-07-27).
+// voucher's first-ever pin) or needs a top-up (more expensive). Card/chip
+// grammar comes from RedeemSuccessPage. The search row and filter modal are
+// ported from _design-export/Turile_Gifts_for_Him_Standalone.html (.search
+// row) and _design-export/Turile_Filter_Modal.html (FilterModal component)
+// — 2026-07-27, replacing an earlier from-scratch approximation.
 //
 // Browsing goes through the session-gated `catalog` function (service
 // role — providers stays fully closed to anon, diagnosed 2026-07-24), with
-// server-side search/sort/delta-range filtering and pagination — a
+// server-side search/sort/delta-range/city filtering and pagination — a
 // client-side slice wouldn't compose with any of those, and won't hold up
 // once the catalog actually grows (Phase 3). Variant-level pricing (picking
 // a specific variant before the delta is computed) is a deliberately
 // deferred follow-up — see the platform spec.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { browseExperiences, startExchange } from "../lib/api";
 import type { ApiError, BrowseExperience, CatalogSort, DeltaRangeKey } from "../lib/types";
 import { useVoucherSession } from "../session/VoucherSessionContext";
 import { AlertBanner, Flower, Icon, PrimaryButton, cx, formatMoney } from "../components/redeem/shared";
+import { FilterModal } from "../components/redeem/FilterModal";
 
 const PAGE_SIZE = 24;
 
@@ -53,8 +55,15 @@ export default function ExchangePage() {
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [sort, setSort] = useState<CatalogSort>("name_asc");
-  const [showSortOptions, setShowSortOptions] = useState(false);
   const [deltaRange, setDeltaRange] = useState<DeltaRangeKey | null>(null);
+  const [cities, setCities] = useState<string[]>([]);
+  const [cityFacets, setCityFacets] = useState<string[]>([]);
+
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [draftDeltaRange, setDraftDeltaRange] = useState<DeltaRangeKey | null>(null);
+  const [draftCities, setDraftCities] = useState<string[]>([]);
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+  const liveCountRequestId = useRef(0);
 
   const [selected, setSelected] = useState<BrowseExperience | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -71,6 +80,7 @@ export default function ExchangePage() {
       search: appliedSearch || undefined,
       sort,
       deltaRange: deltaRange ?? undefined,
+      cities: cities.length ? cities : undefined,
       balanceCents: session!.voucher.balanceCents,
     });
 
@@ -84,20 +94,58 @@ export default function ExchangePage() {
     setTotalCount(r.data.totalCount);
     setPage(r.data.page);
     setPhase("ready");
+    if (r.data.cityFacets.length) setCityFacets(r.data.cityFacets);
   };
 
   useEffect(() => {
     void fetchPage(1, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appliedSearch, sort, deltaRange]);
+  }, [appliedSearch, sort, deltaRange, cities]);
+
+  // Live "Show N results" count for the filter modal — reflects the DRAFT
+  // selection inside the modal, not yet applied to the actual list below.
+  useEffect(() => {
+    if (!filterOpen) return;
+    const requestId = ++liveCountRequestId.current;
+    setLiveCount(null);
+    void browseExperiences(session!.token, {
+      page: 1,
+      pageSize: 1,
+      search: appliedSearch || undefined,
+      sort,
+      deltaRange: draftDeltaRange ?? undefined,
+      cities: draftCities.length ? draftCities : undefined,
+      balanceCents: session!.voucher.balanceCents,
+    }).then((r) => {
+      if (requestId !== liveCountRequestId.current) return; // stale response
+      if (r.ok) setLiveCount(r.data.totalCount);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterOpen, draftDeltaRange, draftCities]);
 
   const submitSearch = () => setAppliedSearch(searchInput.trim());
-  const toggleDeltaRange = (key: DeltaRangeKey) => setDeltaRange((cur) => (cur === key ? null : key));
-  const chooseSort = (key: CatalogSort) => {
-    setSort(key);
-    setShowSortOptions(false);
-  };
+  const chooseSort = (key: CatalogSort) => setSort(key);
   const loadMore = () => void fetchPage(page + 1, true);
+
+  const openFilters = () => {
+    setDraftDeltaRange(deltaRange);
+    setDraftCities(cities);
+    setFilterOpen(true);
+  };
+  const closeFilters = () => setFilterOpen(false);
+  const applyFilters = () => {
+    setDeltaRange(draftDeltaRange);
+    setCities(draftCities);
+    setFilterOpen(false);
+  };
+  const clearFilters = () => {
+    setDraftDeltaRange(null);
+    setDraftCities([]);
+  };
+  const toggleDraftCity = (city: string) =>
+    setDraftCities((cur) => (cur.includes(city) ? cur.filter((c) => c !== city) : [...cur, city]));
+
+  const activeFilterCount = (deltaRange ? 1 : 0) + cities.length;
 
   const confirm = async () => {
     if (!selected) return;
@@ -196,80 +244,75 @@ export default function ExchangePage() {
           you&rsquo;ll cover just the difference.
         </p>
 
-        {/* search + filter block */}
-        <div className="mb-6 rounded-3xl border border-violet-100 bg-white p-4 shadow-md shadow-brand-violet/10 sm:p-5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative min-w-[220px] flex-1">
-              <Icon
-                name="search"
-                className="pointer-events-none absolute left-4 top-1/2 h-4.5 w-4.5 -translate-y-1/2 text-gray-400"
-                strokeWidth={2}
-              />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") submitSearch();
-                }}
-                placeholder="Search an experience, location or occasion…"
-                aria-label="Search experiences"
-                className="w-full rounded-full border-2 border-violet-100 bg-white py-3 pl-11 pr-4 text-base text-gray-900 placeholder:text-gray-500 transition hover:border-violet-700 focus:border-brand-violet focus:outline-none focus:ring-4 focus:ring-brand-violet/20"
-              />
-            </div>
+        {/* search row — ported from _design-export/Turile_Gifts_for_Him_Standalone.html's .search */}
+        <div className="turile mb-4">
+          <form
+            className="search"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitSearch();
+            }}
+          >
+            <Icon name="search" className="fm-icon icon-search" strokeWidth={2} />
+            <input
+              type="search"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search an experience, location or occasion…"
+              aria-label="Search experiences"
+            />
             <button
               type="button"
-              onClick={() => setShowSortOptions((v) => !v)}
-              aria-expanded={showSortOptions}
-              aria-label="Sort options"
+              className="filter-btn"
+              aria-haspopup="dialog"
+              aria-expanded={filterOpen}
+              aria-label="Filters"
+              onClick={openFilters}
+            >
+              <Icon name="sliders" className="fm-icon" strokeWidth={2.2} />
+              <span className="filt-count" hidden={activeFilterCount === 0}>
+                {activeFilterCount}
+              </span>
+            </button>
+            <button type="submit" className="btn btn-primary">
+              <span>Search</span>
+            </button>
+          </form>
+        </div>
+
+        {/* sort — always visible under search */}
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Sort:</span>
+          {SORT_OPTIONS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => chooseSort(o.key)}
               className={cx(
-                "flex h-12 w-12 flex-none items-center justify-center rounded-full transition",
-                showSortOptions ? "bg-brand-violet text-white" : "bg-violet-100 text-brand-violet hover:brightness-95",
+                "rounded-full px-3 py-1.5 text-sm font-semibold transition",
+                sort === o.key ? "bg-brand-violet text-white" : "bg-violet-100 text-gray-700 hover:brightness-95",
               )}
             >
-              <Icon name="sliders" className="h-5 w-5" strokeWidth={2.2} />
+              {o.label}
             </button>
-            <PrimaryButton className="w-auto flex-none px-6" onClick={submitSearch}>
-              Search
-            </PrimaryButton>
-          </div>
-
-          {showSortOptions && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Sort:</span>
-              {SORT_OPTIONS.map((o) => (
-                <button
-                  key={o.key}
-                  type="button"
-                  onClick={() => chooseSort(o.key)}
-                  className={cx(
-                    "rounded-full px-3 py-1.5 text-sm font-semibold transition",
-                    sort === o.key ? "bg-brand-violet text-white" : "bg-violet-100 text-gray-700 hover:brightness-95",
-                  )}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-violet-100 pt-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Top-up:</span>
-            {DELTA_RANGE_OPTIONS.map((o) => (
-              <button
-                key={o.key}
-                type="button"
-                onClick={() => toggleDeltaRange(o.key)}
-                className={cx(
-                  "rounded-full px-3 py-1.5 text-sm font-semibold transition",
-                  deltaRange === o.key ? "bg-brand-violet text-white" : "bg-violet-100 text-gray-700 hover:brightness-95",
-                )}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
+
+        <FilterModal
+          open={filterOpen}
+          onClose={closeFilters}
+          cities={cityFacets}
+          selectedCities={draftCities}
+          onToggleCity={toggleDraftCity}
+          onClearCities={() => setDraftCities([])}
+          deltaRange={draftDeltaRange}
+          onSelectDeltaRange={setDraftDeltaRange}
+          deltaRangeOptions={DELTA_RANGE_OPTIONS}
+          onClear={clearFilters}
+          onApply={applyFilters}
+          resultCount={liveCount}
+        />
 
         {banner && (
           <AlertBanner className="mb-5" tone={banner.kind === "pending_topup_exists" ? "muted" : "error"} data-error-kind={banner.kind}>

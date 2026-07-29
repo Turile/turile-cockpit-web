@@ -379,6 +379,7 @@ export async function browseExperiences(
     sort?: CatalogSort;
     deltaRange?: DeltaRangeKey;
     balanceCents?: number;
+    cities?: string[];
   } = {},
 ): Promise<ApiResult<CatalogPage>> {
   const res = await post("catalog", {
@@ -389,6 +390,7 @@ export async function browseExperiences(
     sort: input.sort,
     delta_range: input.deltaRange,
     balance_cents: input.balanceCents,
+    cities: input.cities,
   });
   if (!res) return { ok: false, error: NETWORK_ERROR };
   const { status, body } = res;
@@ -413,6 +415,7 @@ export async function browseExperiences(
         totalCount: (body.total_count as number) ?? 0,
         page: (body.page as number) ?? 1,
         pageSize: (body.page_size as number) ?? rows.length,
+        cityFacets: ((body.facets as { cities?: string[] } | undefined)?.cities as string[]) ?? [],
       },
     };
   }
