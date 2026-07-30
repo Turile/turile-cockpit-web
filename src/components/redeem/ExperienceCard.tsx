@@ -52,11 +52,11 @@ export function ExperienceCard({
       )}
     >
       {e.imageUrl ? (
-        <div className="aspect-[4/3] bg-violet-100">
-          <img src={e.imageUrl} alt={e.title} className="h-full w-full object-cover" />
+        <div className="relative w-full aspect-[4/3] overflow-hidden bg-violet-100">
+          <img src={e.imageUrl} alt={e.title} className="absolute inset-0 h-full w-full object-cover" />
         </div>
       ) : (
-        <div className="flex aspect-[4/3] items-center justify-center bg-violet-100">
+        <div className="relative flex w-full aspect-[4/3] items-center justify-center overflow-hidden bg-violet-100">
           <Flower className="h-8 w-10 text-brand-violet opacity-60" />
         </div>
       )}
