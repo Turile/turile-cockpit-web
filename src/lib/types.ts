@@ -111,6 +111,12 @@ export type BrowseExperience = {
   participants: string | null;
   duration: string | null;
   providerName: string;
+  // computeExchangeDeltaCents(retailPriceCents, balanceCents) — computed
+  // server-side only, in catalog. Never recompute, estimate, or derive
+  // this client-side; a preview against the caller's last-known balance,
+  // same caveat as the TOP-UP filter itself — exchange re-verifies live
+  // and recomputes authoritatively before any money moves.
+  priceDeltaCents: number;
 };
 
 // Mirrors _shared/pricing.ts's DeltaRangeKey on the backend — kept in sync

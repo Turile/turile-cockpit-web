@@ -412,6 +412,7 @@ export async function browseExperiences(
           participants: r.participants ?? null,
           duration: r.duration ?? null,
           providerName: r.provider?.name ?? "",
+          priceDeltaCents: r.price_delta_cents,
         })),
         totalCount: (body.total_count as number) ?? 0,
         page: (body.page as number) ?? 1,
