@@ -11,6 +11,7 @@ import type {
   Activation,
   ApiError,
   ApiResult,
+  BalanceInfo,
   BookingCreated,
   CatalogPage,
   CatalogSort,
@@ -512,4 +513,33 @@ export async function startExchange(
                     ? { kind: "unavailable", message: "We're briefly unavailable. Try again in a few minutes." }
                     : SERVER_ERROR;
   return { ok: false, error };
+}
+
+// ── balance ──────────────────────────────────────────────────────────────────
+
+export async function getBalance(sessionToken: string): Promise<ApiResult<BalanceInfo>> {
+  const res = await post("balance", { session_token: sessionToken });
+  if (!res) return { ok: false, error: NETWORK_ERROR };
+  const { status, body } = res;
+
+  if (status === 200) {
+    const r = body.redeemed as Record<string, any> | null;
+    return {
+      ok: true,
+      data: {
+        balanceCents: (body.balance_cents as number | null) ?? null,
+        currency: (body.currency as string | null) ?? null,
+        asOf: (body.as_of as string | null) ?? null,
+        isLive: Boolean(body.is_live),
+        deactivated: (body.deactivated as boolean | null) ?? null,
+        redeemed: r
+          ? { count: r.count, totalAmountCents: r.total_amount_cents, singleExperienceTitle: r.single_experience_title ?? null }
+          : null,
+      },
+    };
+  }
+  if (status === 401) {
+    return { ok: false, error: { kind: "session_expired", message: "Your session timed out. Activate your gift again to keep going." } };
+  }
+  return { ok: false, error: SERVER_ERROR };
 }

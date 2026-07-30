@@ -5,6 +5,7 @@ import RedeemSuccessPage from "./routes/RedeemSuccessPage";
 import BookingPage from "./routes/BookingPage";
 import BookingSentPage from "./routes/BookingSentPage";
 import ExchangePage from "./routes/ExchangePage";
+import BalancePage from "./routes/BalancePage";
 import ProviderRespondPage from "./routes/ProviderRespondPage";
 import RecipientRespondPage from "./routes/RecipientRespondPage";
 
@@ -46,6 +47,14 @@ export default function App() {
             element={
               <RequireSession>
                 <ExchangePage />
+              </RequireSession>
+            }
+          />
+          <Route
+            path="/redeem/balance"
+            element={
+              <RequireSession>
+                <BalancePage />
               </RequireSession>
             }
           />

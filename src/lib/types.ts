@@ -127,6 +127,27 @@ export type CatalogPage = {
   cityFacets: string[];
 };
 
+// Balance (balance edge function) — a dedicated live read, separate from
+// the session's own (possibly stale, up to 1h old) balanceCents snapshot.
+export type RedeemedSummary = {
+  count: number;
+  totalAmountCents: number;
+  // Populated only when count === 1 — the one case that reconciles as
+  // "$X used on <title>"; 2+ redemptions render as "$X used across N
+  // bookings" instead (a most-recent-only line would contradict the
+  // balance arithmetic for a voucher redeemed more than once).
+  singleExperienceTitle: string | null;
+};
+
+export type BalanceInfo = {
+  balanceCents: number | null; // null only alongside isLive:false with no fallback cache yet
+  currency: string | null;
+  asOf: string | null;
+  isLive: boolean; // true only for a just-now live Shopify read
+  deactivated: boolean | null; // null = unknown (Shopify unreachable), never guessed false
+  redeemed: RedeemedSummary | null;
+};
+
 export type ExchangeOutcome =
   | {
       mode: "repinned";

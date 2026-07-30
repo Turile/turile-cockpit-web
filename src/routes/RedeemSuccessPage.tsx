@@ -13,7 +13,9 @@
 // "book by" chip gives way to a no-expiry reassurance (monetary value never
 // expires; only the experience pin is time-limited).
 
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { getBalance } from "../lib/api";
 import { useVoucherSession } from "../session/VoucherSessionContext";
 import {
   Flower,
@@ -29,8 +31,23 @@ export default function RedeemSuccessPage() {
   const voucher = session!.voucher;
   const exp = voucher.pinnedExperience;
 
-  const canBook =
-    exp !== null && exp.provider.bookingMode === "request" && voucher.balanceCents > 0;
+  // Live balance, same source as /redeem/balance — one number in the app,
+  // not this page's own possibly-1h-stale session snapshot. Never blocks:
+  // renders with the session value immediately, silently upgrades to the
+  // live one when it arrives; keeps the session value if the live check
+  // fails (no error UI here — that's the dedicated balance screen's job).
+  const [liveBalanceCents, setLiveBalanceCents] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getBalance(session!.token).then((r) => {
+      if (!cancelled && r.ok && r.data.balanceCents !== null) setLiveBalanceCents(r.data.balanceCents);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const balanceCents = liveBalanceCents ?? voucher.balanceCents;
+
+  const canBook = exp !== null && exp.provider.bookingMode === "request" && balanceCents > 0;
   const bookBy = voucher.pinExpiresAt ? formatDateLong(voucher.pinExpiresAt) : null;
 
   return (
@@ -149,19 +166,19 @@ export default function RedeemSuccessPage() {
             )}
 
             <div className="mt-5 flex flex-wrap items-center justify-between gap-3.5 border-t border-violet-100 pt-5">
-              <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              <Link to="/redeem/balance" className="group">
+                <div className="text-xs font-semibold uppercase tracking-wider text-gray-500 group-hover:text-brand-violet">
                   Gift balance
                 </div>
                 <div className="mt-1 flex items-baseline gap-2">
                   <span className="font-display text-3xl leading-none text-brand-violet">
-                    {formatMoney(voucher.balanceCents, voucher.currency)}
+                    {formatMoney(balanceCents, voucher.currency)}
                   </span>
                   <span className="text-sm font-semibold tracking-wide text-gray-500">
                     {voucher.currency}
                   </span>
                 </div>
-              </div>
+              </Link>
               {bookBy && (
                 <span className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3.5 py-2 text-sm font-medium text-gray-600">
                   <span className="h-2 w-2 flex-none rounded-full bg-brand-orange" />
